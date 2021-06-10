@@ -4,8 +4,10 @@ Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses
 
 TODO: Figure out license
 """
-from networks import AdaINGen, MsImageDis, VAEGen
+from networks.unit import AdaINGen, MsImageDis
+from networks.lane_detector import UltraFastLaneDetector
 from utils import weights_init, get_model_list, vgg_preprocess, load_vgg16, get_scheduler
+from lane_losses import UltraFastLaneDetectionLoss
 from torch.autograd import Variable
 import torch
 import torch.nn as nn
@@ -23,6 +25,8 @@ class MUNIT_Trainer(nn.Module):
         self.dis_b = MsImageDis(hyperparameters['input_dim_b'], hyperparameters['dis'])  # discriminator for domain b
         self.instancenorm = nn.InstanceNorm2d(512, affine=False)
         self.style_dim = hyperparameters['gen']['style_dim']
+        self.lane_model = UltraFastLaneDetector(hyperparameters['lane'], feature_dims=self.gen_a.enc.feature_dims)
+        self.lane_loss = UltraFastLaneDetectionLoss(hyperparameters['lane'])
 
         # fix the noise used in sampling
         display_size = int(hyperparameters['display_size'])
@@ -67,13 +71,24 @@ class MUNIT_Trainer(nn.Module):
         self.train()
         return x_ab, x_ba
 
-    def gen_update(self, x_a, x_b, hyperparameters):
+    def eval_lanes(self, x):
+        self.eval()
+        s_b = Variable(self.s_b)
+        c_a, s_a_fake = self.gen_a.encode(x)
+        x_ab = self.gen_b.decode(c_a, s_b)
+        preds = self.lane_model(c_a)
+        self.train()
+        return x_ab, preds
+
+    def gen_update(self, x_a, x_b, y_a, hyperparameters):
         self.gen_opt.zero_grad()
         s_a = Variable(torch.randn(x_a.size(0), self.style_dim, 1, 1).cuda())
         s_b = Variable(torch.randn(x_b.size(0), self.style_dim, 1, 1).cuda())
         # encode
         c_a, s_a_prime = self.gen_a.encode(x_a)
         c_b, s_b_prime = self.gen_b.encode(x_b)
+        # lane detection (within domain)
+        pred_a = self.lane_model(c_a)
         # decode (within domain)
         x_a_recon = self.gen_a.decode(c_a, s_a_prime)
         x_b_recon = self.gen_b.decode(c_b, s_b_prime)
@@ -83,10 +98,15 @@ class MUNIT_Trainer(nn.Module):
         # encode again
         c_b_recon, s_a_recon = self.gen_a.encode(x_ba)
         c_a_recon, s_b_recon = self.gen_b.encode(x_ab)
+        # lane detection (cyclic)
+        pred_a_cyc = self.lane_model(c_a_recon)
         # decode again (if needed)
         x_aba = self.gen_a.decode(c_a_recon, s_a_prime) if hyperparameters['recon_x_cyc_w'] > 0 else None
         x_bab = self.gen_b.decode(c_b_recon, s_b_prime) if hyperparameters['recon_x_cyc_w'] > 0 else None
 
+        # lane detection loss
+        self.lane_loss_x_a = self.lane_loss(pred_a, y_a)
+        self.lane_loss_cyc_x_a = self.lane_loss(pred_a_cyc, y_a)
         # reconstruction loss
         self.loss_gen_recon_x_a = self.recon_criterion(x_a_recon, x_a)
         self.loss_gen_recon_x_b = self.recon_criterion(x_b_recon, x_b)
@@ -114,7 +134,9 @@ class MUNIT_Trainer(nn.Module):
                               hyperparameters['recon_x_cyc_w'] * self.loss_gen_cycrecon_x_a + \
                               hyperparameters['recon_x_cyc_w'] * self.loss_gen_cycrecon_x_b + \
                               hyperparameters['vgg_w'] * self.loss_gen_vgg_a + \
-                              hyperparameters['vgg_w'] * self.loss_gen_vgg_b
+                              hyperparameters['vgg_w'] * self.loss_gen_vgg_b + \
+                              hyperparameters['lane_w'] * self.lane_loss_x_a + \
+                              hyperparameters['lane_cyc_w'] * self.lane_loss_cyc_x_a
         self.loss_gen_total.backward()
         self.gen_opt.step()
 

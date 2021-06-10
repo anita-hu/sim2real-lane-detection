@@ -4,9 +4,10 @@ Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses
 
 TODO: Figure out license
 """
-from networks import AdaINGen, MsImageDis, VAEGen
+from networks.unit import MsImageDis, VAEGen
+from networks.lane_detector import UltraFastLaneDetector
 from utils import weights_init, get_model_list, vgg_preprocess, load_vgg16, get_scheduler
-from torch.autograd import Variable
+from lane_losses import UltraFastLaneDetectionLoss
 import torch
 import torch.nn as nn
 import os
@@ -22,6 +23,8 @@ class UNIT_Trainer(nn.Module):
         self.dis_a = MsImageDis(hyperparameters['input_dim_a'], hyperparameters['dis'])  # discriminator for domain a
         self.dis_b = MsImageDis(hyperparameters['input_dim_b'], hyperparameters['dis'])  # discriminator for domain b
         self.instancenorm = nn.InstanceNorm2d(512, affine=False)
+        self.lane_model = UltraFastLaneDetector(hyperparameters['lane'], feature_dims=self.gen_a.enc.feature_dims)
+        self.lane_loss = UltraFastLaneDetectionLoss(hyperparameters['lane'])
 
         # Setup the optimizers
         beta1 = hyperparameters['beta1']
@@ -59,6 +62,14 @@ class UNIT_Trainer(nn.Module):
         self.train()
         return x_ab, x_ba
 
+    def eval_lanes(self, x):
+        self.eval()
+        h_a, _ = self.gen_a.encode(x)
+        x_ab = self.gen_b.decode(h_a)
+        preds = self.lane_model(h_a)
+        self.train()
+        return x_ab, preds
+
     def __compute_kl(self, mu):
         # def _compute_kl(self, mu, sd):
         # mu_2 = torch.pow(mu, 2)
@@ -69,11 +80,13 @@ class UNIT_Trainer(nn.Module):
         encoding_loss = torch.mean(mu_2)
         return encoding_loss
 
-    def gen_update(self, x_a, x_b, hyperparameters):
+    def gen_update(self, x_a, x_b, y_a, hyperparameters):
         self.gen_opt.zero_grad()
         # encode
         h_a, n_a = self.gen_a.encode(x_a)
         h_b, n_b = self.gen_b.encode(x_b)
+        # lane detection (within domain)
+        pred_a = self.lane_model(h_a + n_a)
         # decode (within domain)
         x_a_recon = self.gen_a.decode(h_a + n_a)
         x_b_recon = self.gen_b.decode(h_b + n_b)
@@ -83,10 +96,15 @@ class UNIT_Trainer(nn.Module):
         # encode again
         h_b_recon, n_b_recon = self.gen_a.encode(x_ba)
         h_a_recon, n_a_recon = self.gen_b.encode(x_ab)
+        # lane detection (cyclic)
+        pred_a_cyc = self.lane_model(h_a_recon + n_a_recon)
         # decode again (if needed)
         x_aba = self.gen_a.decode(h_a_recon + n_a_recon) if hyperparameters['recon_x_cyc_w'] > 0 else None
         x_bab = self.gen_b.decode(h_b_recon + n_b_recon) if hyperparameters['recon_x_cyc_w'] > 0 else None
 
+        # lane detection loss
+        self.lane_loss_x_a = self.lane_loss(pred_a, y_a)
+        self.lane_loss_cyc_x_a = self.lane_loss(pred_a_cyc, y_a)
         # reconstruction loss
         self.loss_gen_recon_x_a = self.recon_criterion(x_a_recon, x_a)
         self.loss_gen_recon_x_b = self.recon_criterion(x_b_recon, x_b)
@@ -114,7 +132,9 @@ class UNIT_Trainer(nn.Module):
                               hyperparameters['recon_x_cyc_w'] * self.loss_gen_cyc_x_b + \
                               hyperparameters['recon_kl_cyc_w'] * self.loss_gen_recon_kl_cyc_bab + \
                               hyperparameters['vgg_w'] * self.loss_gen_vgg_a + \
-                              hyperparameters['vgg_w'] * self.loss_gen_vgg_b
+                              hyperparameters['vgg_w'] * self.loss_gen_vgg_b + \
+                              hyperparameters['lane_w'] * self.lane_loss_x_a + \
+                              hyperparameters['lane_cyc_w'] * self.lane_loss_cyc_x_a
         self.loss_gen_total.backward()
         self.gen_opt.step()
 

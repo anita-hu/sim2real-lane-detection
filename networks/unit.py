@@ -97,12 +97,13 @@ class AdaINGen(nn.Module):
         activ = params['activ']
         pad_type = params['pad_type']
         mlp_dim = params['mlp_dim']
+        last_n = params['store_last_n']
 
         # style encoder
         self.enc_style = StyleEncoder(4, input_dim, dim, style_dim, norm='none', activ=activ, pad_type=pad_type)
 
         # content encoder
-        self.enc_content = ContentEncoder(n_downsample, n_res, input_dim, dim, 'in', activ, pad_type=pad_type)
+        self.enc_content = ContentEncoder(n_downsample, n_res, input_dim, dim, 'in', activ, pad_type=pad_type, store_last_n=last_n)
         self.dec = Decoder(n_downsample, n_res, self.enc_content.output_dim, input_dim, res_norm='adain', activ=activ, pad_type=pad_type)
 
         # MLP to generate AdaIN parameters
@@ -156,9 +157,10 @@ class VAEGen(nn.Module):
         n_res = params['n_res']
         activ = params['activ']
         pad_type = params['pad_type']
+        last_n = params['store_last_n']
 
         # content encoder
-        self.enc = ContentEncoder(n_downsample, n_res, input_dim, dim, 'in', activ, pad_type=pad_type)
+        self.enc = ContentEncoder(n_downsample, n_res, input_dim, dim, 'in', activ, pad_type=pad_type, store_last_n=last_n)
         self.dec = Decoder(n_downsample, n_res, self.enc.output_dim, input_dim, res_norm='in', activ=activ, pad_type=pad_type)
 
     def forward(self, images):
@@ -204,7 +206,7 @@ class StyleEncoder(nn.Module):
         return self.model(x)
 
 class ContentEncoder(nn.Module):
-    def __init__(self, n_downsample, n_res, input_dim, dim, norm, activ, pad_type):
+    def __init__(self, n_downsample, n_res, input_dim, dim, norm, activ, pad_type, store_last_n):
         super(ContentEncoder, self).__init__()
         self.model = []
         self.model += [Conv2dBlock(input_dim, dim, 7, 1, 3, norm=norm, activation=activ, pad_type=pad_type)]
@@ -213,12 +215,23 @@ class ContentEncoder(nn.Module):
             self.model += [Conv2dBlock(dim, 2 * dim, 4, 2, 1, norm=norm, activation=activ, pad_type=pad_type)]
             dim *= 2
         # residual blocks
-        self.model += [ResBlocks(n_res, dim, norm=norm, activation=activ, pad_type=pad_type)]
-        self.model = nn.Sequential(*self.model)
+        self.model += [ResBlock(dim, norm=norm, activation=activ, pad_type=pad_type) for n in n_res]
+        self.model = nn.ModuleList(self.model)
         self.output_dim = dim
+        # store last n features for lane detector
+        self.feature_dims = []
+        self.store_last_n = store_last_n
+        for layer in self.model[:-store_last_n]:
+            self.feature_dims.append(layer.output_dim)
+        self.stored_features = None
 
     def forward(self, x):
-        return self.model(x)
+        self.stored_features = []
+        for i, layer in enumerate(self.model):
+            x = layer(x)
+            if i >= len(self.model) - self.store_last_n:
+                self.stored_features.append(x)
+        return x
 
 class Decoder(nn.Module):
     def __init__(self, n_upsample, n_res, dim, output_dim, res_norm='adain', activ='relu', pad_type='zero'):
@@ -273,7 +286,7 @@ class MLP(nn.Module):
 class ResBlock(nn.Module):
     def __init__(self, dim, norm='in', activation='relu', pad_type='zero'):
         super(ResBlock, self).__init__()
-
+        self.output_dim = dim
         model = []
         model += [Conv2dBlock(dim ,dim, 3, 1, 1, norm=norm, activation=activation, pad_type=pad_type)]
         model += [Conv2dBlock(dim ,dim, 3, 1, 1, norm=norm, activation='none', pad_type=pad_type)]
@@ -289,6 +302,7 @@ class Conv2dBlock(nn.Module):
     def __init__(self, input_dim ,output_dim, kernel_size, stride,
                  padding=0, norm='none', activation='relu', pad_type='zero'):
         super(Conv2dBlock, self).__init__()
+        self.output_dim = output_dim
         self.use_bias = True
         # initialize padding
         if pad_type == 'reflect':

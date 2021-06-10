@@ -6,17 +6,17 @@ Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses
 NOTE:
 By convention, dataset A will be simulation, labelled data, while dataset B will be real-world without labels
 """
-from utils import get_all_data_loaders, prepare_sub_folder, write_html, write_loss, get_config, write_2images, Timer
+from utils import prepare_sub_folder, write_html, write_loss, get_config, write_2images, Timer
 import argparse
-from torch.autograd import Variable
 from trainers import MUNIT_Trainer, UNIT_Trainer
 import torch.backends.cudnn as cudnn
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from data.dataloader import get_train_loader, get_test_loader
+
 try:
     from itertools import izip as zip
-except ImportError: # will be 3.x series
+except ImportError:  # will be 3.x series
     pass
 import os
 import sys
@@ -37,7 +37,22 @@ max_iter = config['max_iter']
 display_size = config['display_size']
 config['vgg_model_path'] = opts.output_path
 
-# Setup model and data loader
+# Setup data loaders
+print(f"Loading {config['datasetA']} as dataset A. (labelled, simulated)")
+train_loader_a = get_train_loader(config["batch_size"], config["dataA_root"],
+                                  griding_num=200, dataset=config["datasetA"],
+                                  use_aux=True, distributed=False, num_lanes=4,
+                                  return_label=True)
+
+print(f"Loading {config['datasetB']} as dataset B.")
+train_loader_b = get_train_loader(config["batch_size"], config["dataB_root"],
+                                  griding_num=200, dataset=config["datasetB"],
+                                  use_aux=True, distributed=False, num_lanes=4)
+
+test_loader_b = get_test_loader(batch_size=config["batch_size"], data_root=config["dataB_root"],
+                                dataset=config["datasetB"], distributed=False)
+
+# Setup model
 if opts.trainer == 'MUNIT':
     trainer = MUNIT_Trainer(config)
 elif opts.trainer == 'UNIT':
@@ -46,54 +61,36 @@ else:
     sys.exit("Only support MUNIT|UNIT")
 trainer.cuda()
 
-
-print(f"Loading {config['datasetA']} as dataset A. (labelled, simulated)")
-# cls num per lane is an integer
-train_loader_a, cls_num_per_lane = get_train_loader(config["batch_size"], config["dataA_root"]
-                                                 , griding_num=200, dataset=config["datasetA"],
-                                                 use_aux=True, distributed=False, num_lanes=4,
-                                                    return_label=True)
-
-print(f"Loading {config['datasetB']} as dataset B.")
-
-train_loader_b, cls_num_per_lane = get_train_loader(config["batch_size"], config["dataB_root"]
-                                                 , griding_num=200, dataset=config["datasetB"],
-                                                 use_aux=True, distributed=False, num_lanes=4)
-
-test_loader_b = get_test_loader(batch_size=config["batch_size"], data_root=config["dataB_root"],
-                             dataset=config["datasetB"], distributed=False)
-
-
-# example demonstrating the interface of the dataloaders
-for i, data in enumerate(train_loader_a):
-    image, cls_label, img_name = data  # 3 torch.Tensors.
-    break
-
-for i, data in enumerate(train_loader_b):
-    image = data  # unlabelled, only has the image
-    break
-
+train_display_images_a = torch.stack([train_loader_a.dataset[i] for i in range(display_size)]).cuda()
+train_display_images_b = torch.stack([train_loader_b.dataset[i] for i in range(display_size)]).cuda()
+test_display_images_b = torch.stack([test_loader_b.dataset[i] for i in range(display_size)]).cuda()
 
 # Setup logger and output folders
 model_name = os.path.splitext(os.path.basename(opts.config))[0]
 train_writer = SummaryWriter(log_dir=os.path.join(opts.output_path + "/logs", model_name))
 output_directory = os.path.join(opts.output_path + "/outputs", model_name)
 checkpoint_directory, image_directory = prepare_sub_folder(output_directory)
-shutil.copy(opts.config, os.path.join(output_directory, 'config.yaml')) # copy config file to output folder
+shutil.copy(opts.config, os.path.join(output_directory, 'config.yaml'))  # copy config file to output folder
 
 # Start training
 iterations = trainer.resume(checkpoint_directory, hyperparameters=config) if opts.resume else 0
 print("beginning training")
 while True:
-    for it, ((images_a, _, _), images_b) in enumerate(zip(train_loader_a, train_loader_b)):
-        # don't use the labels at this step
-        images_a, images_b = images_a.cuda().detach(), images_b.cuda().detach()
+    for it, (image_label_a, image_b) in enumerate(zip(train_loader_a, train_loader_b)):
+        if config["lane"]["use_aux"]:
+            images_a, cls_label, seg_label = image_label_a
+            images_a = images_a.cuda().detach()
+            label_a = (cls_label.long().cuda().detach(), seg_label.long().cuda().detach())
+        else:
+            images_a, cls_label = image_label_a
+            images_a, label_a = images_a.cuda(), cls_label.long().cuda()
 
+        images_b = image_b.cuda().detach()
 
         with Timer("Elapsed time in update: %f"):
             # Main training code
             trainer.dis_update(images_a, images_b, config)
-            trainer.gen_update(images_a, images_b, config)
+            trainer.gen_update(images_a, images_b, label_a, config)
             torch.cuda.synchronize()
 
         # Dump training stats in log file
@@ -104,7 +101,7 @@ while True:
         # Write images
         if (iterations + 1) % config['image_save_iter'] == 0:
             with torch.no_grad():
-                test_image_outputs = trainer.sample(test_display_images_a, test_display_images_b)
+                test_image_outputs = trainer.sample(train_display_images_a, test_display_images_b)
                 train_image_outputs = trainer.sample(train_display_images_a, train_display_images_b)
             write_2images(test_image_outputs, display_size, image_directory, 'test_%08d' % (iterations + 1))
             write_2images(train_image_outputs, display_size, image_directory, 'train_%08d' % (iterations + 1))
@@ -124,4 +121,3 @@ while True:
         iterations += 1
         if iterations >= max_iter:
             sys.exit('Finish training')
-
