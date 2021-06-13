@@ -23,6 +23,7 @@ except ImportError:  # will be 3.x series
 import os
 import sys
 import shutil
+import wandb
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', type=str, default='configs/edges2handbags_folder.yaml', help='Path to the config file.')

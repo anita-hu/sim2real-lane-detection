@@ -24,6 +24,7 @@ recon_x_cyc_w: 10             # weight of explicit style augmented cycle consist
 vgg_w: 1                      # weight of domain-invariant perceptual loss
 lane_w: 10                    # weight of lane detection loss
 lane_cyc_w: 10                # weight of cyclic lane detection loss
+random_seed: 42
 
 # model options
 trainer: MUNIT                 # trainer [UNIT/MUNIT]
