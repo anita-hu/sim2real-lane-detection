@@ -43,28 +43,34 @@ else:
 trainer.cuda()
 
 
+print(f"Loading {config['datasetA']} as dataset A.")
 # cls num per lane is an integer
-trainloaderA, cls_num_per_lane = get_train_loader(config["batch_size"], config["dataA_root"]
-                                                 , griding_num=200, config["datasetA"],
+train_loader_a, cls_num_per_lane = get_train_loader(config["batch_size"], config["dataA_root"]
+                                                 , griding_num=200, dataset=config["datasetA"],
                                                  use_aux=True, distributed=False, num_lanes=4)
 
-testloaderA = get_test_loader(batch_size=config["batch_size"], data_root=config["dataA_root"],
+test_loader_a = get_test_loader(batch_size=config["batch_size"], data_root=config["dataA_root"],
                              dataset=config["datasetA"], distributed=False)
 
 
-trainloaderA, cls_num_per_lane = get_train_loader(config["batch_size"], config["dataA_root"]
-                                                 , griding_num=200, config["datasetA"],
+print(f"Loading {config['datasetB']} as dataset B.")
+
+train_loader_b, cls_num_per_lane = get_train_loader(config["batch_size"], config["dataB_root"]
+                                                 , griding_num=200, dataset=config["datasetB"],
                                                  use_aux=True, distributed=False, num_lanes=4)
 
-testloaderA = get_test_loader(batch_size=config["batch_size"], data_root=config["dataA_root"],
-                             dataset=config["datasetA"], distributed=False)
+test_loader_b = get_test_loader(batch_size=config["batch_size"], data_root=config["dataB_root"],
+                             dataset=config["datasetB"], distributed=False)
 
-for i, data in enumerate(trainloaderA):
+
+# example demonstrating the interface of the dataloaders
+
+for i, data in enumerate(train_loader_a):
 
     # TODO verify the format of anchors and labels
     image, anchor, label = data  # 3 torch.Tensors.
 
-for i, data in enumerate(testloader):
+for i, data in enumerate(test_loader_a):
     # the testloader returns images, and then the names of the images in the dataset
     # The idea is that we can use the names to look up the ground truth or generate it
     # TODO we might just want to change this, because the testloader should return the 
