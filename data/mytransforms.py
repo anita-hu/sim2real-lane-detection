@@ -8,7 +8,6 @@ from PIL import Image, ImageOps, ImageFilter
 #from config import cfg
 import torch
 import pdb
-import cv2
 
 # ===============================img tranforms============================
 

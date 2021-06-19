@@ -60,7 +60,7 @@ def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distr
 
     return train_loader, cls_num_per_lane
 
-def get_test_loader(batch_size, data_root,dataset, distributed):
+def get_test_loader(batch_size, data_root, dataset, distributed):
     img_transforms = transforms.Compose([
         transforms.Resize((288, 800)),
         transforms.ToTensor(),
