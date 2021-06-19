@@ -6,6 +6,9 @@ outputs
 # PyCharm
 .idea
 
+.nvimlog
+data/.nvimlog
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
