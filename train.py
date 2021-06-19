@@ -66,9 +66,9 @@ test_loader_b = get_test_loader(batch_size=config["batch_size"], data_root=confi
 # example demonstrating the interface of the dataloaders
 
 for i, data in enumerate(train_loader_a):
-
     # TODO verify the format of anchors and labels
     image, anchor, label = data  # 3 torch.Tensors.
+    break
 
 for i, data in enumerate(test_loader_a):
     # the testloader returns images, and then the names of the images in the dataset
@@ -78,6 +78,7 @@ for i, data in enumerate(test_loader_a):
     imgs, names = data
     print(imgs.size())  # a pytorch tensor batch of images
     print(names)  # a tuple of image names
+    break
 
 
 # train_loader_a, train_loader_b, test_loader_a, test_loader_b = get_all_data_loaders(config)
@@ -95,9 +96,12 @@ shutil.copy(opts.config, os.path.join(output_directory, 'config.yaml')) # copy c
 
 # Start training
 iterations = trainer.resume(checkpoint_directory, hyperparameters=config) if opts.resume else 0
+print("beginning training")
 while True:
-    for it, (images_a, images_b) in enumerate(zip(train_loader_a, train_loader_b)):
+    for it, ((images_a, _, _), (images_b, _, _)) in enumerate(zip(train_loader_a, train_loader_b)):
+        # don't use the labels at this step
         images_a, images_b = images_a.cuda().detach(), images_b.cuda().detach()
+
 
         with Timer("Elapsed time in update: %f"):
             # Main training code
