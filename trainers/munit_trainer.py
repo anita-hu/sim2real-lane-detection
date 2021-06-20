@@ -73,14 +73,13 @@ class MUNIT_Trainer(nn.Module):
 
     def eval_lanes(self, x):
         self.eval()
-        s_b = Variable(self.s_b)
-        c_a, s_a_fake = self.gen_a.encode(x)
-        x_ab = self.gen_b.decode(c_a, s_b)
-        preds = self.lane_model(c_a)
+        c_b, _ = self.gen_b.encode(x)
+        preds = self.lane_model(c_b)
         self.train()
-        return x_ab, preds
+        return preds
 
     def gen_update(self, x_a, x_b, y_a, hyperparameters):
+        # assume x_a from simulation data with labels y_a and x_b from real data
         self.gen_opt.zero_grad()
         s_a = Variable(torch.randn(x_a.size(0), self.style_dim, 1, 1).cuda())
         s_b = Variable(torch.randn(x_b.size(0), self.style_dim, 1, 1).cuda())
@@ -199,6 +198,8 @@ class MUNIT_Trainer(nn.Module):
         self.gen_a.load_state_dict(state_dict['a'])
         self.gen_b.load_state_dict(state_dict['b'])
         iterations = int(last_model_name[-11:-3])
+        # Load lane model
+        self.lane_model.load_state_dict(state_dict['lane'])
         # Load discriminators
         last_model_name = get_model_list(checkpoint_dir, "dis")
         state_dict = torch.load(last_model_name)
@@ -219,7 +220,7 @@ class MUNIT_Trainer(nn.Module):
         gen_name = os.path.join(snapshot_dir, 'gen_%08d.pt' % (iterations + 1))
         dis_name = os.path.join(snapshot_dir, 'dis_%08d.pt' % (iterations + 1))
         opt_name = os.path.join(snapshot_dir, 'optimizer.pt')
-        torch.save({'a': self.gen_a.state_dict(), 'b': self.gen_b.state_dict()}, gen_name)
+        torch.save({'a': self.gen_a.state_dict(), 'b': self.gen_b.state_dict(),
+                    'lane': self.lane_model.state_dict()}, gen_name)
         torch.save({'a': self.dis_a.state_dict(), 'b': self.dis_b.state_dict()}, dis_name)
         torch.save({'gen': self.gen_opt.state_dict(), 'dis': self.dis_opt.state_dict()}, opt_name)
-

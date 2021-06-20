@@ -64,11 +64,10 @@ class UNIT_Trainer(nn.Module):
 
     def eval_lanes(self, x):
         self.eval()
-        h_a, _ = self.gen_a.encode(x)
-        x_ab = self.gen_b.decode(h_a)
-        preds = self.lane_model(h_a)
+        h_b, _ = self.gen_b.encode(x)
+        preds = self.lane_model(h_b)
         self.train()
-        return x_ab, preds
+        return preds
 
     def __compute_kl(self, mu):
         # def _compute_kl(self, mu, sd):
@@ -81,6 +80,7 @@ class UNIT_Trainer(nn.Module):
         return encoding_loss
 
     def gen_update(self, x_a, x_b, y_a, hyperparameters):
+        # assume x_a from simulation data with labels y_a and x_b from real data
         self.gen_opt.zero_grad()
         # encode
         h_a, n_a = self.gen_a.encode(x_a)
@@ -189,6 +189,8 @@ class UNIT_Trainer(nn.Module):
         self.gen_a.load_state_dict(state_dict['a'])
         self.gen_b.load_state_dict(state_dict['b'])
         iterations = int(last_model_name[-11:-3])
+        # Load lane model
+        self.lane_model.load_state_dict(state_dict['lane'])
         # Load discriminators
         last_model_name = get_model_list(checkpoint_dir, "dis")
         state_dict = torch.load(last_model_name)
@@ -209,7 +211,7 @@ class UNIT_Trainer(nn.Module):
         gen_name = os.path.join(snapshot_dir, 'gen_%08d.pt' % (iterations + 1))
         dis_name = os.path.join(snapshot_dir, 'dis_%08d.pt' % (iterations + 1))
         opt_name = os.path.join(snapshot_dir, 'optimizer.pt')
-        torch.save({'a': self.gen_a.state_dict(), 'b': self.gen_b.state_dict()}, gen_name)
+        torch.save({'a': self.gen_a.state_dict(), 'b': self.gen_b.state_dict(),
+                    'lane': self.lane_model.state_dict()}, gen_name)
         torch.save({'a': self.dis_a.state_dict(), 'b': self.dis_b.state_dict()}, dis_name)
         torch.save({'gen': self.gen_opt.state_dict(), 'dis': self.dis_opt.state_dict()}, opt_name)
-
