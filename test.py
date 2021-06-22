@@ -50,6 +50,7 @@ trainer.lane_model.load_state_dict(state_dict['lane'])
 trainer.cuda()
 trainer.eval()
 
+distributed = False
 if 'WORLD_SIZE' in os.environ:
     distributed = int(os.environ['WORLD_SIZE']) > 1
 
