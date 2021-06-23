@@ -39,7 +39,7 @@ class LaneTestDataset(torch.utils.data.Dataset):
 
 class LaneClsDataset(torch.utils.data.Dataset):
     def __init__(self, path, list_path, img_transform = None,target_transform = None,simu_transform = None, griding_num=50, load_name = False,
-                row_anchor = None,use_aux=False,segment_transform=None, num_lanes = 4):
+                row_anchor = None,use_aux=False,segment_transform=None, num_lanes = 4, return_label=False):
         super(LaneClsDataset, self).__init__()
         self.img_transform = img_transform
         self.target_transform = target_transform
@@ -50,7 +50,9 @@ class LaneClsDataset(torch.utils.data.Dataset):
         self.load_name = load_name
         self.use_aux = use_aux
         self.num_lanes = num_lanes
+        self.return_label = return_label
 
+        # read the list of files
         with open(list_path, 'r') as f:
             self.list = f.readlines()
 
@@ -75,6 +77,11 @@ class LaneClsDataset(torch.utils.data.Dataset):
         if self.simu_transform is not None:
             img, label = self.simu_transform(img, label)
         lane_pts = self._get_index(label)
+
+        # for training unsupervised tasks, we don't need the label
+        if not self.return_label:
+            return img
+
         # get the coordinates of lanes at row anchors
 
 

@@ -1,6 +1,10 @@
 """
 Copyright (C) 2018 NVIDIA Corporation.  All rights reserved.
 Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
+
+
+NOTE:
+By convention, dataset A will be simulation, labelled data, while dataset B will be real-world without labels
 """
 from utils import get_all_data_loaders, prepare_sub_folder, write_html, write_loss, get_config, write_2images, Timer
 import argparse
@@ -71,11 +75,7 @@ for i, data in enumerate(train_loader_a):
     break
 
 for i, data in enumerate(test_loader_a):
-    # the testloader returns images, and then the names of the images in the dataset
-    # The idea is that we can use the names to look up the ground truth or generate it
-    # TODO we might just want to change this, because the testloader should return the 
-    # actual label
-    imgs, names = data
+    imgs, names = data  # name of the image which can be used to find the label
     print(imgs.size())  # a pytorch tensor batch of images
     print(names)  # a tuple of image names
     break

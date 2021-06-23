@@ -42,6 +42,40 @@ def draw(im,line,idx,show = False):
         cv2.line(im,pt0,(int(line_x[i+1]),int(line_y[i+1])),(idx,),thickness = 16)
         pt0 = (int(line_x[i+1]),int(line_y[i+1]))
 
+def get_wato_list(root):
+    """
+    In the wato dataset, each image file has its own json annotation
+    We load all these dictionaries into one array, then continue as if it were
+    TuSimple
+    """
+    label_json_all = []
+    for file in os.listdir(root):
+        if file.endswith(".json"):
+            filename = os.path.join(root, file)
+            label = json.loads(open(filename).readline())
+            # print(type(label))
+            label['raw_file'] = root+"/"+file[:-4] + "jpg"
+            print(label)
+            label_json_all.append(label)
+
+    names = [l["raw_file"] for l in label_json_all]
+    h_samples = [np.array(l['h_sample']) for l in label_json_all]
+    lanes = [np.array(l['lanes']) for l in label_json_all]
+
+    line_txt = []
+    for i in range(len(lanes)):
+        line_txt_i = []
+        for j in range(len(lanes[i])):
+            if np.all(lanes[i][j] == -2):
+                continue
+            valid = lanes[i][j] != -2
+            line_txt_tmp = [None]*(len(h_samples[i][valid])+len(lanes[i][j][valid]))
+            line_txt_tmp[::2] = list(map(str,lanes[i][j][valid]))
+            line_txt_tmp[1::2] = list(map(str,h_samples[i][valid]))
+            line_txt_i.append(line_txt_tmp)
+        line_txt.append(line_txt_i)
+
+    return names, line_txt
 
 def get_tusimple_list(root, label_list):
     '''
@@ -150,13 +184,7 @@ if __name__ == "__main__":
     args = get_args().parse_args()
 
     # training set
-    names,line_txt = get_tusimple_list(args.root,  ['label_data_0601.json','label_data_0531.json','label_data_0313.json'])
+    # names,line_txt = get_tusimple_list(args.root,  ['label_data_0601.json','label_data_0531.json','label_data_0313.json'])
+    names,line_txt = get_wato_list(args.root)
     # generate segmentation and training list for training
     generate_segmentation_and_train_list(args.root, line_txt, names)
-
-    # testing set
-    names,line_txt = get_tusimple_list(args.root, ['test_tasks_0627.json'])
-    # generate testing set for testing
-    with open(os.path.join(args.root,'test.txt'),'w') as fp:
-        for name in names:
-            fp.write(name + '\n')
