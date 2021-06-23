@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
          zip \
          unzip
 RUN pip install tensorboard
+RUN pip install opencv-python
 
 RUN useradd -m dev
 USER dev
