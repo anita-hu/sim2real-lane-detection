@@ -78,13 +78,7 @@ class LaneClsDataset(torch.utils.data.Dataset):
             img, label = self.simu_transform(img, label)
         lane_pts = self._get_index(label)
 
-        # for training unsupervised tasks, we don't need the label
-        if not self.return_label:
-            return img
-
         # get the coordinates of lanes at row anchors
-
-
 
         w, h = img.size
         cls_label = self._grid_pts(lane_pts, self.griding_num, w)
@@ -95,6 +89,10 @@ class LaneClsDataset(torch.utils.data.Dataset):
 
         if self.img_transform is not None:
             img = self.img_transform(img)
+
+        # for training unsupervised tasks, we don't need the label
+        if not self.return_label:
+            return img
 
         if self.use_aux:
             return img, cls_label, seg_label

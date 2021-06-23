@@ -47,15 +47,12 @@ else:
 trainer.cuda()
 
 
-print(f"Loading {config['datasetA']} as dataset A.")
+print(f"Loading {config['datasetA']} as dataset A. (labelled, simulated)")
 # cls num per lane is an integer
 train_loader_a, cls_num_per_lane = get_train_loader(config["batch_size"], config["dataA_root"]
                                                  , griding_num=200, dataset=config["datasetA"],
-                                                 use_aux=True, distributed=False, num_lanes=4)
-
-# test_loader_a = get_test_loader(batch_size=config["batch_size"], data_root=config["dataA_root"],
-                             # dataset=config["datasetA"], distributed=False)
-
+                                                 use_aux=True, distributed=False, num_lanes=4,
+                                                    return_label=True)
 
 print(f"Loading {config['datasetB']} as dataset B.")
 
@@ -68,24 +65,14 @@ test_loader_b = get_test_loader(batch_size=config["batch_size"], data_root=confi
 
 
 # example demonstrating the interface of the dataloaders
-
 for i, data in enumerate(train_loader_a):
-    # TODO verify the format of anchors and labels
-    image, anchor, label = data  # 3 torch.Tensors.
+    image, cls_label, img_name = data  # 3 torch.Tensors.
     break
 
-for i, data in enumerate(test_loader_a):
-    imgs, names = data  # name of the image which can be used to find the label
-    print(imgs.size())  # a pytorch tensor batch of images
-    print(names)  # a tuple of image names
+for i, data in enumerate(train_loader_b):
+    image = data  # unlabelled, only has the image
     break
 
-
-# train_loader_a, train_loader_b, test_loader_a, test_loader_b = get_all_data_loaders(config)
-# train_display_images_a = torch.stack([train_loader_a.dataset[i] for i in range(display_size)]).cuda()
-# train_display_images_b = torch.stack([train_loader_b.dataset[i] for i in range(display_size)]).cuda()
-# test_display_images_a = torch.stack([test_loader_a.dataset[i] for i in range(display_size)]).cuda()
-# test_display_images_b = torch.stack([test_loader_b.dataset[i] for i in range(display_size)]).cuda()
 
 # Setup logger and output folders
 model_name = os.path.splitext(os.path.basename(opts.config))[0]
@@ -98,7 +85,7 @@ shutil.copy(opts.config, os.path.join(output_directory, 'config.yaml')) # copy c
 iterations = trainer.resume(checkpoint_directory, hyperparameters=config) if opts.resume else 0
 print("beginning training")
 while True:
-    for it, ((images_a, _, _), (images_b, _, _)) in enumerate(zip(train_loader_a, train_loader_b)):
+    for it, ((images_a, _, _), images_b) in enumerate(zip(train_loader_a, train_loader_b)):
         # don't use the labels at this step
         images_a, images_b = images_a.cuda().detach(), images_b.cuda().detach()
 
