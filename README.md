@@ -26,6 +26,20 @@ Launch docker image
 bash start.sh
 ```
 
+#### TuSimple Conversion
+
+TuSimple has a unique structure for data and labels. There is also no segmentation labelling.
+TuSimple must therefore be reformatted to have a similar structure to CULane data. Additionally,
+segmentation labelling should be generated from the available data, to use segmentation loss.
+
+This is accomplished by running the following script:
+```
+python3 data/convert_tusimple.py --root /path/to/TuSimple
+```
+This command must be run before any training or evaluation; the training and testing
+scripts expect the TuSimple data to already be reformatted.
+
+
 #### Training
 ```
 python train.py --trainer UNIT --config configs/unit_sample_config.yaml
