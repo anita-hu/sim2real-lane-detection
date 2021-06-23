@@ -52,7 +52,7 @@ crop_image_height: 256                      # random crop image of this height
 crop_image_width: 256                       # random crop image of this width
 
 datasetA: WATO  # one of CULane, TuSimple, WATO
-dataA_root: /datasets/CULane     # dataset folder location
+dataA_root: /datasets/wato_roadline     # dataset folder location
 
 datasetB: TuSimple  # one of CULane, TuSimple, WATO
 dataB_root: /datasets/TuSimple     # dataset folder location

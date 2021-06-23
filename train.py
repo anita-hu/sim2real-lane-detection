@@ -53,8 +53,8 @@ train_loader_a, cls_num_per_lane = get_train_loader(config["batch_size"], config
                                                  , griding_num=200, dataset=config["datasetA"],
                                                  use_aux=True, distributed=False, num_lanes=4)
 
-test_loader_a = get_test_loader(batch_size=config["batch_size"], data_root=config["dataA_root"],
-                             dataset=config["datasetA"], distributed=False)
+# test_loader_a = get_test_loader(batch_size=config["batch_size"], data_root=config["dataA_root"],
+                             # dataset=config["datasetA"], distributed=False)
 
 
 print(f"Loading {config['datasetB']} as dataset B.")

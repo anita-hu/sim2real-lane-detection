@@ -90,6 +90,10 @@ def get_test_loader(batch_size, data_root, dataset, distributed):
         test_dataset = LaneTestDataset(data_root,os.path.join(data_root, 'test.txt'), img_transform = img_transforms)
         cls_num_per_lane = 56
 
+    elif dataset == 'WATO':
+        test_dataset = LaneTestDataset(data_root,os.path.join(data_root, 'test.txt'), img_transform = img_transforms)
+        cls_num_per_lane = 56
+
     if distributed:
         sampler = SeqDistributedSampler(test_dataset, shuffle = False)
     else:

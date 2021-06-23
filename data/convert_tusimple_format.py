@@ -49,12 +49,13 @@ def get_wato_list(root):
     TuSimple
     """
     label_json_all = []
+    root = root+"/dataset"  # shift
     for file in os.listdir(root):
         if file.endswith(".json"):
             filename = os.path.join(root, file)
             label = json.loads(open(filename).readline())
             # print(type(label))
-            label['raw_file'] = root+"/"+file[:-4] + "jpg"
+            label['raw_file'] = "dataset/"+file[:-4] + "jpg"
             print(label)
             label_json_all.append(label)
 
@@ -177,14 +178,28 @@ def generate_segmentation_and_train_list(root, line_txt, names):
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--root', required=True, help='The root of the Tusimple dataset')
+    parser.add_argument('--root', required=True, help='The root of the dataset')
+    parser.add_argument('--dataset', required=True, help='one of "TuSimple", "WATO", specifying which dataset')
     return parser
 
 if __name__ == "__main__":
     args = get_args().parse_args()
 
-    # training set
-    # names,line_txt = get_tusimple_list(args.root,  ['label_data_0601.json','label_data_0531.json','label_data_0313.json'])
-    names,line_txt = get_wato_list(args.root)
-    # generate segmentation and training list for training
-    generate_segmentation_and_train_list(args.root, line_txt, names)
+    if args.dataset == "WATO":
+        # wato only has training, we don't need testing for simulation
+        names,line_txt = get_wato_list(args.root)
+        generate_segmentation_and_train_list(args.root, line_txt, names)
+    else:
+        # training set
+        names,line_txt = get_tusimple_list(args.root,  ['label_data_0601.json',
+                                                        'label_data_0531.json',
+                                                        'label_data_0313.json'])
+        # generate segmentation and training list for training
+        generate_segmentation_and_train_list(args.root, line_txt, names)
+
+        # testing set
+        names,line_txt = get_tusimple_list(args.root, ['test_tasks_0627.json'])
+        # generate testing set for testing
+        with open(os.path.join(args.root, 'test.txt'),'w') as fp:
+            for name in names:
+                fp.write(name + '\n')
