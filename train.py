@@ -41,13 +41,15 @@ config['vgg_model_path'] = opts.output_path
 print(f"Loading {config['datasetA']} as dataset A. (labelled, simulated)")
 train_loader_a = get_train_loader(config["batch_size"], config["dataA_root"],
                                   griding_num=200, dataset=config["datasetA"],
-                                  use_aux=True, distributed=False, num_lanes=4,
+                                  use_aux=config["lane"]["use_aux"], distributed=False,
+                                  num_lanes=config["lane"]["num_lanes"],
                                   return_label=True)
 
 print(f"Loading {config['datasetB']} as dataset B.")
 train_loader_b = get_train_loader(config["batch_size"], config["dataB_root"],
                                   griding_num=200, dataset=config["datasetB"],
-                                  use_aux=True, distributed=False, num_lanes=4)
+                                  use_aux=config["lane"]["use_aux"], distributed=False,
+                                  num_lanes=config["lane"]["num_lanes"])
 
 test_loader_b = get_test_loader(batch_size=config["batch_size"], data_root=config["dataB_root"],
                                 dataset=config["datasetB"], distributed=False)
@@ -61,9 +63,9 @@ else:
     sys.exit("Only support MUNIT|UNIT")
 trainer.cuda()
 
-train_display_images_a = torch.stack([train_loader_a.dataset[i] for i in range(display_size)]).cuda()
+train_display_images_a = torch.stack([train_loader_a.dataset[i][0] for i in range(display_size)]).cuda()
 train_display_images_b = torch.stack([train_loader_b.dataset[i] for i in range(display_size)]).cuda()
-test_display_images_b = torch.stack([test_loader_b.dataset[i] for i in range(display_size)]).cuda()
+test_display_images_b = torch.stack([test_loader_b.dataset[i][0] for i in range(display_size)]).cuda()
 
 # Setup logger and output folders
 model_name = os.path.splitext(os.path.basename(opts.config))[0]

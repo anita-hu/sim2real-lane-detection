@@ -49,7 +49,7 @@ class UltraFastLaneDetector(torch.nn.Module):
         num_lanes = hyperparams["num_lanes"]
         self.cls_dim = (num_gridding, row_anchors, num_lanes)
         self.use_aux = hyperparams["use_aux"]
-        self.total_dim = np.prod(self.cls_dim)
+        self.total_dim = int(np.prod(self.cls_dim))
 
         # input : nchw,
         # output: (w+1) * sample_rows * 4
@@ -67,7 +67,7 @@ class UltraFastLaneDetector(torch.nn.Module):
                 ConvBnRelu(128, 128, 3, padding=1),
             )
             self.aux_header4 = torch.nn.Sequential(
-                ConvBnRelu(feature_dims[3], 128, kernel_size=3, stride=1, padding=1),
+                ConvBnRelu(feature_dims[2], 128, kernel_size=3, stride=1, padding=1),
                 ConvBnRelu(128, 128, 3, padding=1),
             )
             self.aux_combine = torch.nn.Sequential(
@@ -86,7 +86,7 @@ class UltraFastLaneDetector(torch.nn.Module):
             torch.nn.Linear(2048, self.total_dim),
         )
 
-        self.pool = torch.nn.Conv2d(feature_dims[3], 8, 1)
+        self.pool = torch.nn.Conv2d(feature_dims[2], 8, 1)
         # 1/32,2048 channel
         # 288,800 -> 9,40,2048
         # (w+1) * sample_rows * 4
@@ -100,9 +100,9 @@ class UltraFastLaneDetector(torch.nn.Module):
         if self.use_aux:
             x2 = self.aux_header2(x2)
             x3 = self.aux_header3(x3)
-            x3 = torch.nn.functional.interpolate(x3, scale_factor=2, mode='bilinear')
+            # x3 = torch.nn.functional.interpolate(x3, scale_factor=2, mode='bilinear')
             x4 = self.aux_header4(fea)
-            x4 = torch.nn.functional.interpolate(x4, scale_factor=4, mode='bilinear')
+            # x4 = torch.nn.functional.interpolate(x4, scale_factor=4, mode='bilinear')
             aux_seg = torch.cat([x2, x3, x4], dim=1)
             aux_seg = self.aux_combine(aux_seg)
         else:

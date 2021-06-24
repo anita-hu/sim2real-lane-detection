@@ -215,13 +215,13 @@ class ContentEncoder(nn.Module):
             self.model += [Conv2dBlock(dim, 2 * dim, 4, 2, 1, norm=norm, activation=activ, pad_type=pad_type)]
             dim *= 2
         # residual blocks
-        self.model += [ResBlock(dim, norm=norm, activation=activ, pad_type=pad_type) for n in n_res]
+        self.model += [ResBlock(dim, norm=norm, activation=activ, pad_type=pad_type) for n in range(n_res)]
         self.model = nn.ModuleList(self.model)
         self.output_dim = dim
         # store last n features for lane detector
         self.feature_dims = []
         self.store_last_n = store_last_n
-        for layer in self.model[:-store_last_n]:
+        for layer in self.model[-store_last_n:]:
             self.feature_dims.append(layer.output_dim)
         self.stored_features = None
 

@@ -49,14 +49,11 @@ def get_wato_list(root):
     TuSimple
     """
     label_json_all = []
-    root = root+"/dataset"  # shift
     for file in os.listdir(root):
         if file.endswith(".json"):
             filename = os.path.join(root, file)
             label = json.loads(open(filename).readline())
-            # print(type(label))
-            label['raw_file'] = "dataset/"+file[:-4] + "jpg"
-            print(label)
+            label['raw_file'] = file[:-4] + "jpg"
             label_json_all.append(label)
 
     names = [l["raw_file"] for l in label_json_all]
