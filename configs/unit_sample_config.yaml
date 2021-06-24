@@ -54,8 +54,10 @@ lane:
   shp_loss_w: 0.0             # lane shape loss weight
 
 # data options
-input_dim_a: 3                              # number of image channels [1/3]
-input_dim_b: 3                              # number of image channels [1/3]
+input_dim_a: 3                # number of image channels [1/3]
+input_dim_b: 3                # number of image channels [1/3]
+input_height: 256             # resized image height
+input_width: 256              # resized image width
 
 datasetA: WATO  # one of CULane, TuSimple, WATO
 dataA_root: /datasets/WATO     # dataset folder location
