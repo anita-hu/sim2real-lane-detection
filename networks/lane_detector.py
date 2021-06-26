@@ -44,7 +44,7 @@ class UltraFastLaneDetector(torch.nn.Module):
     def __init__(self, hyperparams, feature_dims=None, size=(288, 800)):
         super(UltraFastLaneDetector, self).__init__()
 
-        num_gridding = hyperparams["griding_num"]
+        num_gridding = hyperparams["griding_num"]+1
         row_anchors = hyperparams["cls_num_per_lane"]
         num_lanes = hyperparams["num_lanes"]
         self.cls_dim = (num_gridding, row_anchors, num_lanes)

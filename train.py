@@ -40,7 +40,7 @@ config['vgg_model_path'] = opts.output_path
 # Setup data loaders
 print(f"Loading {config['datasetA']} as dataset A. (labelled, simulated)")
 train_loader_a = get_train_loader(config["batch_size"], config["dataA_root"],
-                                  griding_num=200, dataset=config["datasetA"],
+                                  griding_num=config["lane"]["griding_num"], dataset=config["datasetA"],
                                   use_aux=config["lane"]["use_aux"], distributed=False,
                                   num_lanes=config["lane"]["num_lanes"],
                                   image_dim=(config["input_height"], config["input_width"]),
@@ -48,7 +48,7 @@ train_loader_a = get_train_loader(config["batch_size"], config["dataA_root"],
 
 print(f"Loading {config['datasetB']} as dataset B.")
 train_loader_b = get_train_loader(config["batch_size"], config["dataB_root"],
-                                  griding_num=200, dataset=config["datasetB"],
+                                  griding_num=config["lane"]["griding_num"], dataset=config["datasetB"],
                                   use_aux=config["lane"]["use_aux"], distributed=False,
                                   num_lanes=config["lane"]["num_lanes"],
                                   image_dim=(config["input_height"], config["input_width"]))
@@ -79,7 +79,7 @@ shutil.copy(opts.config, os.path.join(output_directory, 'config.yaml'))  # copy 
 
 # Start training
 iterations = trainer.resume(checkpoint_directory, hyperparameters=config) if opts.resume else 0
-print("beginning training")
+print("Beginning training")
 while True:
     for it, (image_label_a, image_b) in enumerate(zip(train_loader_a, train_loader_b)):
         if config["lane"]["use_aux"]:
