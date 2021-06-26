@@ -54,8 +54,9 @@ class UltraFastLaneDetectionLoss(nn.Module):
             cls_label = labels
 
         lane_loss += self.lane_losses["cls_loss"](cls_out, cls_label)
-        lane_loss += self.lane_losses["sim_loss"](cls_out) * self.lane_loss_weights["sim_loss"]
-        lane_loss += self.lane_losses["shp_loss"](cls_out) * self.lane_loss_weights["shp_loss"]
+        lane_loss += self.lane_losses["sim_loss"](cls_out) * self.loss_weights["sim_loss"]
+        lane_loss += self.lane_losses["shp_loss"](cls_out) * self.loss_weights["shp_loss"]
+
         return lane_loss
 
 

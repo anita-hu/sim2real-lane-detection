@@ -38,7 +38,8 @@ class LaneTestDataset(torch.utils.data.Dataset):
 
 class LaneClsDataset(torch.utils.data.Dataset):
     def __init__(self, path, list_path, img_transform=None, target_transform=None, simu_transform=None, griding_num=50,
-                 row_anchor=None, use_aux=False, segment_transform=None, num_lanes=4, return_label=False):
+                 image_dim=(288, 800), row_anchor=None, use_aux=False, segment_transform=None, num_lanes=4,
+                 return_label=False):
         super(LaneClsDataset, self).__init__()
         self.img_transform = img_transform
         self.target_transform = target_transform
@@ -49,6 +50,7 @@ class LaneClsDataset(torch.utils.data.Dataset):
         self.use_aux = use_aux
         self.num_lanes = num_lanes
         self.return_label = return_label
+        self.resize_dim = image_dim
 
         # read the list of files
         with open(list_path, 'r') as f:
@@ -113,10 +115,8 @@ class LaneClsDataset(torch.utils.data.Dataset):
 
     def _get_index(self, label):
         w, h = label.size
-
-        if h != 288:
-            scale_f = lambda x: int((x * 1.0 / 288) * h)
-            sample_tmp = list(map(scale_f, self.row_anchor))
+        scale_f = lambda x: int((x * 1.0 / self.resize_dim[0]) * h)
+        sample_tmp = list(map(scale_f, self.row_anchor))
 
         all_idx = np.zeros((self.num_lanes, len(sample_tmp), 2))
         for i, r in enumerate(sample_tmp):

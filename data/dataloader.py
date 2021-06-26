@@ -7,21 +7,29 @@ import numpy as np
 
 import torchvision.transforms as transforms
 import data.mytransforms as mytransforms
-from data.constant import tusimple_row_anchor, culane_row_anchor
 from data.dataset import LaneClsDataset, LaneTestDataset
 
 
-def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distributed, num_lanes, return_label=False):
+def get_tusimple_row_anchor(image_height):
+    return [int((160+i*10)/720*image_height) for i in range(56)]
+
+
+def get_culane_row_anchor(image_height):
+    return [int(image_height-i*20/590*image_height)-1 for i in range(18)]
+
+
+def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distributed, num_lanes, image_dim=(288, 800),
+                     return_label=False):
     target_transform = transforms.Compose([
-        mytransforms.FreeScaleMask((288, 800)),
+        mytransforms.FreeScaleMask(image_dim),
         mytransforms.MaskToTensor(),
     ])
     segment_transform = transforms.Compose([
-        mytransforms.FreeScaleMask((36, 100)),
+        mytransforms.FreeScaleMask((image_dim[0]//4, image_dim[1]//4)),
         mytransforms.MaskToTensor(),
     ])
     img_transform = transforms.Compose([
-        transforms.Resize((288, 800)),
+        transforms.Resize(image_dim),
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
     ])
@@ -31,6 +39,7 @@ def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distr
         mytransforms.RandomLROffsetLABEL(200)
     ])
     if dataset == 'CULane':
+        culane_row_anchor = get_culane_row_anchor(image_dim[0])
         train_dataset = LaneClsDataset(data_root,
                                        os.path.join(data_root, 'list/train_gt.txt'),
                                        img_transform=img_transform,
@@ -38,10 +47,14 @@ def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distr
                                        simu_transform=simu_transform,
                                        segment_transform=segment_transform,
                                        row_anchor=culane_row_anchor,
-                                       griding_num=griding_num, use_aux=use_aux,
-                                       num_lanes=num_lanes, return_label=return_label)
+                                       griding_num=griding_num,
+                                       image_dim=image_dim,
+                                       use_aux=use_aux,
+                                       num_lanes=num_lanes,
+                                       return_label=return_label)
 
     elif dataset == 'TuSimple':
+        tusimple_row_anchor = get_tusimple_row_anchor(image_dim[0])
         train_dataset = LaneClsDataset(data_root,
                                        os.path.join(data_root, 'train_gt.txt'),
                                        img_transform=img_transform,
@@ -49,11 +62,14 @@ def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distr
                                        simu_transform=simu_transform,
                                        griding_num=griding_num,
                                        row_anchor=tusimple_row_anchor,
+                                       image_dim=image_dim,
                                        segment_transform=segment_transform,
-                                       use_aux=use_aux, num_lanes=num_lanes,
+                                       use_aux=use_aux,
+                                       num_lanes=num_lanes,
                                        return_label=return_label)
 
     elif dataset == 'WATO':
+        tusimple_row_anchor = get_tusimple_row_anchor(image_dim[0])
         train_dataset = LaneClsDataset(data_root,
                                        os.path.join(data_root, 'train_gt.txt'),
                                        img_transform=img_transform,
@@ -61,6 +77,7 @@ def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distr
                                        simu_transform=simu_transform,
                                        griding_num=griding_num,
                                        row_anchor=tusimple_row_anchor,
+                                       image_dim=image_dim,
                                        segment_transform=segment_transform,
                                        use_aux=use_aux,
                                        num_lanes=num_lanes,
@@ -78,9 +95,9 @@ def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distr
     return train_loader
 
 
-def get_test_loader(batch_size, data_root, dataset, distributed):
+def get_test_loader(batch_size, data_root, dataset, distributed, image_dim=(288, 800)):
     img_transforms = transforms.Compose([
-        transforms.Resize((288, 800)),
+        transforms.Resize(image_dim),
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
     ])

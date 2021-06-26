@@ -23,7 +23,9 @@ class UNIT_Trainer(nn.Module):
         self.dis_a = MsImageDis(hyperparameters['input_dim_a'], hyperparameters['dis'])  # discriminator for domain a
         self.dis_b = MsImageDis(hyperparameters['input_dim_b'], hyperparameters['dis'])  # discriminator for domain b
         self.instancenorm = nn.InstanceNorm2d(512, affine=False)
-        self.lane_model = UltraFastLaneDetector(hyperparameters['lane'], feature_dims=self.gen_a.enc.feature_dims)
+        input_size = (hyperparameters['input_height'], hyperparameters['input_width'])
+        self.lane_model = UltraFastLaneDetector(hyperparameters['lane'], feature_dims=self.gen_a.enc.feature_dims,
+                                                size=input_size)
         self.lane_loss = UltraFastLaneDetectionLoss(hyperparameters['lane'])
 
         # Setup the optimizers

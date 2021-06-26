@@ -43,16 +43,19 @@ train_loader_a = get_train_loader(config["batch_size"], config["dataA_root"],
                                   griding_num=200, dataset=config["datasetA"],
                                   use_aux=config["lane"]["use_aux"], distributed=False,
                                   num_lanes=config["lane"]["num_lanes"],
+                                  image_dim=(config["input_height"], config["input_width"]),
                                   return_label=True)
 
 print(f"Loading {config['datasetB']} as dataset B.")
 train_loader_b = get_train_loader(config["batch_size"], config["dataB_root"],
                                   griding_num=200, dataset=config["datasetB"],
                                   use_aux=config["lane"]["use_aux"], distributed=False,
-                                  num_lanes=config["lane"]["num_lanes"])
+                                  num_lanes=config["lane"]["num_lanes"],
+                                  image_dim=(config["input_height"], config["input_width"]))
 
 test_loader_b = get_test_loader(batch_size=config["batch_size"], data_root=config["dataB_root"],
-                                dataset=config["datasetB"], distributed=False)
+                                dataset=config["datasetB"], distributed=False,
+                                image_dim=(config["input_height"], config["input_width"]))
 
 # Setup model
 if opts.trainer == 'MUNIT':

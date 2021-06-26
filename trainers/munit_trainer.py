@@ -25,7 +25,9 @@ class MUNIT_Trainer(nn.Module):
         self.dis_b = MsImageDis(hyperparameters['input_dim_b'], hyperparameters['dis'])  # discriminator for domain b
         self.instancenorm = nn.InstanceNorm2d(512, affine=False)
         self.style_dim = hyperparameters['gen']['style_dim']
-        self.lane_model = UltraFastLaneDetector(hyperparameters['lane'], feature_dims=self.gen_a.enc.feature_dims)
+        input_size = (hyperparameters['input_height'], hyperparameters['input_width'])
+        self.lane_model = UltraFastLaneDetector(hyperparameters['lane'], feature_dims=self.gen_a.enc.feature_dims,
+                                                size=input_size)
         self.lane_loss = UltraFastLaneDetectionLoss(hyperparameters['lane'])
 
         # fix the noise used in sampling

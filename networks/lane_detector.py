@@ -80,36 +80,29 @@ class UltraFastLaneDetector(torch.nn.Module):
             )
             initialize_weights(self.aux_header2, self.aux_header3, self.aux_header4, self.aux_combine)
 
+        self.pool = torch.nn.Conv2d(feature_dims[2], 8, 1)
+
+        self.cls_in = int(size[0]/4*size[1]/4*8)
         self.cls = torch.nn.Sequential(
-            torch.nn.Linear(1800, 2048),
+            torch.nn.Linear(self.cls_in, 2048),
             torch.nn.ReLU(),
             torch.nn.Linear(2048, self.total_dim),
         )
-
-        self.pool = torch.nn.Conv2d(feature_dims[2], 8, 1)
-        # 1/32,2048 channel
-        # 288,800 -> 9,40,2048
-        # (w+1) * sample_rows * 4
         initialize_weights(self.cls)
 
     def forward(self, x):
-        # n c h w - > n 2048 sh sw
-        # -> n 2048
         x2, x3, fea = x
 
         if self.use_aux:
             x2 = self.aux_header2(x2)
             x3 = self.aux_header3(x3)
-            # x3 = torch.nn.functional.interpolate(x3, scale_factor=2, mode='bilinear')
             x4 = self.aux_header4(fea)
-            # x4 = torch.nn.functional.interpolate(x4, scale_factor=4, mode='bilinear')
             aux_seg = torch.cat([x2, x3, x4], dim=1)
             aux_seg = self.aux_combine(aux_seg)
         else:
             aux_seg = None
 
-        fea = self.pool(fea).view(-1, 1800)
-
+        fea = self.pool(fea).view(-1, self.cls_in)
         group_cls = self.cls(fea).view(-1, *self.cls_dim)
 
         if self.use_aux:
