@@ -40,7 +40,7 @@ def generate_lines(out, shape, names, output_path, griding_num, localization_typ
                     for k in range(out_j.shape[0]):
                         if out_j[k, i] > 0:
                             fp.write(
-                                '%d %d ' % (int(out_j[k, i] * col_sample_w * 1640 / 800) - 1, int(590 - k * 20) - 1))
+                                '%d %d ' % (int(out_j[k, i] * col_sample_w * 1640 / shape[1]) - 1, int(590 - k * 20) - 1))
                     fp.write('\n')
 
 

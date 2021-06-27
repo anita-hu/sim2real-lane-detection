@@ -15,7 +15,6 @@ Model weights are stored using Git LFS. Install [Git LFS](https://git-lfs.github
 git clone https://github.com/anita-hu/sim2real-lane-detection.git
 ```
 
-
 #### Docker
 Build docker image
 ```
@@ -87,6 +86,21 @@ python data/convert_tusimple_format.py --dataset WATO --root /datasets/WATO
 #### Training
 ```
 python train.py --trainer UNIT --config configs/unit_sample_config.yaml
+```
+
+#### Evaluating
+Build the evaluation tool
+```
+cd evaluation/culane
+make
+```
+For evaluation, run
+```
+mkdir results
+
+python test.py configs/culane.py --test_model path_to_culane.pth --test_work_dir ./results
+
+python test.py configs/tusimple.py --test_model path_to_tusimple.pth --test_work_dir ./results
 ```
 
 ### Reference

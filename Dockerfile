@@ -13,9 +13,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
          libpng-dev \
          axel \
          zip \
-         unzip
+         unzip \
+         g++
 RUN pip install tensorboard
 RUN pip install opencv-python
+
+# Install OpenCV C++ for evaluation
+RUN wget -O opencv.zip https://github.com/opencv/opencv/archive/master.zip && unzip opencv.zip
+RUN mkdir -p build
+RUN cd build && cmake  ../opencv-master && cmake --build .
+RUN ln -s /usr/local/include/opencv4/opencv2 /usr/local/include/opencv2
 
 RUN useradd -m dev
 USER dev
