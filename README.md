@@ -54,12 +54,19 @@ $CULANEROOT
 |──laneseg_label_w16
 |──list
 ```
+Download our simulation data [WATO](https://drive.google.com/drive/folders/1ZPO_e_gMUXdWNgxMJWdAgn9iOOgV8qUW?usp=sharing)
+and unzip to `$WATOROOT`.
 The WATO directory should look like:
 ```
-
+$WATOROOT
+|──Town01_000000.jpg
+|──Town01_000000.json
+|──Town01_000001.jpg
+|──Town01_000001.json
+|──...
 ```
 
-#### TuSimple Format Conversion
+#### TuSimple/WATO Format Conversion
 
 TuSimple has a unique structure for data and labels. There is also no segmentation labelling.
 TuSimple must therefore be reformatted to have a similar structure to CULane data. Additionally,

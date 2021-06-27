@@ -30,6 +30,36 @@ import numpy as np
 
 class UltraFastLaneDetectionLoss(nn.Module):
     def __init__(self, hyperparameters):
+        """ Consists of 4 losses as described in "Ultra Fast Structure-aware Deep Lane Detection"
+            https://arxiv.org/abs/2004.11757
+            with issues of structural losses further explained in
+            https://github.com/cfzd/Ultra-Fast-Lane-Detection/issues/8#issuecomment-647004142
+
+            segmentation loss (optional):
+                auxiliary segmentation branch, uses pixel-wise cross entropy loss where
+                the model output is (batch, num_of_lanes+1, input height / 4, input width / 4)
+            classification loss:
+                w+1 classes, where w is the number of gridding cells and
+                an extra dimension is used to indicate the absence of lane. The model
+                predicts the probability of selecting (w+1) gridding cells for the i-th lane
+                and j-th row anchor, where the output dimension of the model is
+                    (w+1) * num row anchors * num lanes
+            similarity loss:
+                lane points in adjacent row anchors should be close to each other. This is
+                done by constraining the distribution of classification vectors over adjacent
+                row anchors.
+                NOTE: This works well with higher number of row anchors since the difference
+                between rows is less (i.e. TuSimple->56 row anchors). However if the difference
+                is large (i.e. CULane->18 row anchors) optimizing this loss may lead to
+                inferior performance
+            shape loss:
+                the lane shape is constrained with the second-order difference which is zero
+                when straight (generally most lanes are straight, even with curved lanes the
+                majority is straight due to the perspective effect)
+                NOTE: since the model output is w+1 where the first w dimensions is for
+                localization and the last is for "no lane" case, this could harm the learning
+                of the shape loss
+        """
         super(UltraFastLaneDetectionLoss, self).__init__()
         self.use_aux = hyperparameters["use_aux"]
         self.loss_weights = {
