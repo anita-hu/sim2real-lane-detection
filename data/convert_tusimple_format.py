@@ -9,6 +9,7 @@ import cv2
 import tqdm
 import numpy as np
 import json, argparse
+import shutil
 
 
 def calc_k(line):
@@ -49,14 +50,15 @@ def get_wato_list(root):
     TuSimple
     """
     label_json_all = []
-    root = root+"/dataset"  # shift
+    os.mkdir(os.path.join(root, "data"))
+    data_folder = os.path.join(root, "data")
     for file in os.listdir(root):
         if file.endswith(".json"):
             filename = os.path.join(root, file)
             label = json.loads(open(filename).readline())
-            # print(type(label))
-            label['raw_file'] = "dataset/"+file[:-4] + "jpg"
-            print(label)
+            label['raw_file'] = "data/" + file[:-4] + "jpg"
+            shutil.move(filename, os.path.join(data_folder, file))
+            shutil.move(filename[:-4] + "jpg", os.path.join(data_folder, file[:-4] + "jpg"))
             label_json_all.append(label)
 
     names = [l["raw_file"] for l in label_json_all]

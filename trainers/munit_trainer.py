@@ -4,8 +4,10 @@ Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses
 
 TODO: Figure out license
 """
-from networks import AdaINGen, MsImageDis, VAEGen
+from networks.unit import AdaINGen, MsImageDis
+from networks.lane_detector import UltraFastLaneDetector
 from utils import weights_init, get_model_list, vgg_preprocess, load_vgg16, get_scheduler
+from lane_losses import UltraFastLaneDetectionLoss
 from torch.autograd import Variable
 import torch
 import torch.nn as nn
@@ -23,6 +25,10 @@ class MUNIT_Trainer(nn.Module):
         self.dis_b = MsImageDis(hyperparameters['input_dim_b'], hyperparameters['dis'])  # discriminator for domain b
         self.instancenorm = nn.InstanceNorm2d(512, affine=False)
         self.style_dim = hyperparameters['gen']['style_dim']
+        input_size = (hyperparameters['input_height'], hyperparameters['input_width'])
+        self.lane_model = UltraFastLaneDetector(hyperparameters['lane'], feature_dims=self.gen_a.enc_content.feature_dims,
+                                                size=input_size)
+        self.lane_loss = UltraFastLaneDetectionLoss(hyperparameters['lane'])
 
         # fix the noise used in sampling
         display_size = int(hyperparameters['display_size'])
@@ -67,13 +73,25 @@ class MUNIT_Trainer(nn.Module):
         self.train()
         return x_ab, x_ba
 
-    def gen_update(self, x_a, x_b, hyperparameters):
+    def eval_lanes(self, x):
+        self.eval()
+        c_b, _ = self.gen_b.encode(x)
+        fea_b = self.gen_b.enc_content.stored_features
+        preds = self.lane_model(fea_b)
+        self.train()
+        return preds
+
+    def gen_update(self, x_a, x_b, y_a, hyperparameters):
+        # assume x_a from simulation data with labels y_a and x_b from real data
         self.gen_opt.zero_grad()
         s_a = Variable(torch.randn(x_a.size(0), self.style_dim, 1, 1).cuda())
         s_b = Variable(torch.randn(x_b.size(0), self.style_dim, 1, 1).cuda())
         # encode
         c_a, s_a_prime = self.gen_a.encode(x_a)
         c_b, s_b_prime = self.gen_b.encode(x_b)
+        # lane detection (within domain)
+        fea_a = self.gen_a.enc_content.stored_features
+        pred_a = self.lane_model(fea_a)
         # decode (within domain)
         x_a_recon = self.gen_a.decode(c_a, s_a_prime)
         x_b_recon = self.gen_b.decode(c_b, s_b_prime)
@@ -83,10 +101,16 @@ class MUNIT_Trainer(nn.Module):
         # encode again
         c_b_recon, s_a_recon = self.gen_a.encode(x_ba)
         c_a_recon, s_b_recon = self.gen_b.encode(x_ab)
+        # lane detection (cyclic)
+        fea_a_recon = self.gen_a.enc_content.stored_features
+        pred_a_cyc = self.lane_model(fea_a_recon)
         # decode again (if needed)
         x_aba = self.gen_a.decode(c_a_recon, s_a_prime) if hyperparameters['recon_x_cyc_w'] > 0 else None
         x_bab = self.gen_b.decode(c_b_recon, s_b_prime) if hyperparameters['recon_x_cyc_w'] > 0 else None
 
+        # lane detection loss
+        self.lane_loss_x_a = self.lane_loss(pred_a, y_a)
+        self.lane_loss_cyc_x_a = self.lane_loss(pred_a_cyc, y_a)
         # reconstruction loss
         self.loss_gen_recon_x_a = self.recon_criterion(x_a_recon, x_a)
         self.loss_gen_recon_x_b = self.recon_criterion(x_b_recon, x_b)
@@ -114,7 +138,9 @@ class MUNIT_Trainer(nn.Module):
                               hyperparameters['recon_x_cyc_w'] * self.loss_gen_cycrecon_x_a + \
                               hyperparameters['recon_x_cyc_w'] * self.loss_gen_cycrecon_x_b + \
                               hyperparameters['vgg_w'] * self.loss_gen_vgg_a + \
-                              hyperparameters['vgg_w'] * self.loss_gen_vgg_b
+                              hyperparameters['vgg_w'] * self.loss_gen_vgg_b + \
+                              hyperparameters['lane_w'] * self.lane_loss_x_a + \
+                              hyperparameters['lane_cyc_w'] * self.lane_loss_cyc_x_a
         self.loss_gen_total.backward()
         self.gen_opt.step()
 
@@ -177,6 +203,8 @@ class MUNIT_Trainer(nn.Module):
         self.gen_a.load_state_dict(state_dict['a'])
         self.gen_b.load_state_dict(state_dict['b'])
         iterations = int(last_model_name[-11:-3])
+        # Load lane model
+        self.lane_model.load_state_dict(state_dict['lane'])
         # Load discriminators
         last_model_name = get_model_list(checkpoint_dir, "dis")
         state_dict = torch.load(last_model_name)
@@ -197,7 +225,7 @@ class MUNIT_Trainer(nn.Module):
         gen_name = os.path.join(snapshot_dir, 'gen_%08d.pt' % (iterations + 1))
         dis_name = os.path.join(snapshot_dir, 'dis_%08d.pt' % (iterations + 1))
         opt_name = os.path.join(snapshot_dir, 'optimizer.pt')
-        torch.save({'a': self.gen_a.state_dict(), 'b': self.gen_b.state_dict()}, gen_name)
+        torch.save({'a': self.gen_a.state_dict(), 'b': self.gen_b.state_dict(),
+                    'lane': self.lane_model.state_dict()}, gen_name)
         torch.save({'a': self.dis_a.state_dict(), 'b': self.dis_b.state_dict()}, dis_name)
         torch.save({'gen': self.gen_opt.state_dict(), 'dis': self.dis_opt.state_dict()}, opt_name)
-
