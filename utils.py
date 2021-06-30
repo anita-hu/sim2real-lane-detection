@@ -107,17 +107,18 @@ def eformat(f, prec):
     return "%se%d"%(mantissa, int(exp))
 
 
-def __write_images(image_outputs, display_image_num, file_name):
+def make_grid(image_outputs, display_image_num):
     image_outputs = [images.expand(-1, 3, -1, -1) for images in image_outputs] # expand gray-scale images to 3 channels
     image_tensor = torch.cat([images[:display_image_num] for images in image_outputs], 0)
     image_grid = vutils.make_grid(image_tensor.data, nrow=display_image_num, padding=0, normalize=True)
-    vutils.save_image(image_grid, file_name, nrow=1)
+    return image_grid
 
 
-def write_2images(image_outputs, display_image_num, image_directory, postfix):
+def write_2images(image_outputs, display_image_num, iteration, postfix):
     n = len(image_outputs)
-    __write_images(image_outputs[0:n//2], display_image_num, '%s/gen_a2b_%s.jpg' % (image_directory, postfix))
-    __write_images(image_outputs[n//2:n], display_image_num, '%s/gen_b2a_%s.jpg' % (image_directory, postfix))
+    a2b = wandb.Image(make_grid(image_outputs[0:n//2], display_image_num))
+    b2a = wandb.Image(make_grid(image_outputs[n//2:n], display_image_num))
+    wandb.log({f"a2b_{postfix}": a2b, f"b2a_{postfix}": b2a}, step=iteration)
 
 
 def prepare_sub_folder(output_directory):
