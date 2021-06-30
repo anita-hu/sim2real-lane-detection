@@ -34,8 +34,6 @@ parser.add_argument('--entity', type=str, default='watonomous-perception-researc
 parser.add_argument('--project', type=str, default='sim2real-lane-detection', help="wandb project name")
 opts = parser.parse_args()
 
-cudnn.benchmark = True
-
 # Load experiment setting
 config = get_config(opts.config)
 display_size = config['display_size']
@@ -46,8 +44,12 @@ config["trainer"] = opts.trainer
 config["resume"] = opts.resume
 wandb.init(entity=opts.entity, project=opts.project, config=config)
 
-# set the pytorch random seed manually for reproducability.
-torch.manual_seed(config["random_seed"])
+# set random seed for reproducability
+torch.manual_seed(config["random_seed"])  # cpu
+torch.cuda.manual_seed_all(config["random_seed"])  # gpu
+torch.backends.cudnn.enabled = False
+torch.backends.cudnn.benchmark = False
+torch.backends.cudnn.deterministic = True
 
 # Setup data loaders
 print(f"Loading {config['datasetA']} as dataset A. (labelled, simulated)")
@@ -86,7 +88,7 @@ test_display_images_b = torch.stack([val_loader_b.dataset[i][0] for i in range(d
 # Setup logger and output folders
 model_name = os.path.splitext(os.path.basename(opts.config))[0]
 output_directory = os.path.join(opts.output_path + "/outputs", model_name)
-checkpoint_directory, image_directory = prepare_sub_folder(output_directory)
+checkpoint_directory = prepare_sub_folder(output_directory)
 shutil.copy(opts.config, os.path.join(output_directory, 'config.yaml'))  # copy config file to output folder
 
 # Start training
@@ -114,7 +116,7 @@ for epoch in range(start_epoch, config['max_epoch']):
 
         trainer.update_learning_rate()
 
-    write_loss(epoch, trainer)
+    write_loss(epoch + 1, trainer)
 
     # Write images
     if (epoch + 1) % config['image_save_epoch'] == 0:
