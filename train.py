@@ -12,7 +12,6 @@ from tqdm import tqdm
 from trainers import MUNIT_Trainer, UNIT_Trainer
 import torch.backends.cudnn as cudnn
 import torch
-from torch.utils.tensorboard import SummaryWriter
 from data.dataloader import get_train_loader, get_test_loader
 from evaluation.eval_wrapper import eval_lane
 
@@ -37,6 +36,14 @@ cudnn.benchmark = True
 config = get_config(opts.config)
 display_size = config['display_size']
 config['vgg_model_path'] = opts.output_path
+
+# initialize wandb
+config["trainer"] = opts.trainer
+config["resume"] = opts.resume
+wandb.init(entity="watonomous-perception-research", project='sim2real-lane-detection', config=config)
+
+# set the pytorch random seed manually for reproducability.
+torch.manual_seed(config["random_seed"])
 
 # Setup data loaders
 print(f"Loading {config['datasetA']} as dataset A. (labelled, simulated)")
@@ -74,7 +81,6 @@ test_display_images_b = torch.stack([val_loader_b.dataset[i][0] for i in range(d
 
 # Setup logger and output folders
 model_name = os.path.splitext(os.path.basename(opts.config))[0]
-train_writer = SummaryWriter(log_dir=os.path.join(opts.output_path + "/logs", model_name))
 output_directory = os.path.join(opts.output_path + "/outputs", model_name)
 checkpoint_directory, image_directory = prepare_sub_folder(output_directory)
 shutil.copy(opts.config, os.path.join(output_directory, 'config.yaml'))  # copy config file to output folder
@@ -104,7 +110,7 @@ for epoch in range(config['max_epoch']):
 
         trainer.update_learning_rate()
 
-    write_loss(epoch, trainer, train_writer)
+    write_loss(epoch, trainer)
 
     # Write images
     if (epoch + 1) % config['image_save_epoch'] == 0:
