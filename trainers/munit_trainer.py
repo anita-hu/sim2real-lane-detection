@@ -202,7 +202,7 @@ class MUNIT_Trainer(nn.Module):
         state_dict = torch.load(last_model_name)
         self.gen_a.load_state_dict(state_dict['a'])
         self.gen_b.load_state_dict(state_dict['b'])
-        iterations = int(last_model_name[-11:-3])
+        epoch = int(last_model_name[-11:-3])
         # Load lane model
         self.lane_model.load_state_dict(state_dict['lane'])
         # Load discriminators
@@ -215,15 +215,15 @@ class MUNIT_Trainer(nn.Module):
         self.dis_opt.load_state_dict(state_dict['dis'])
         self.gen_opt.load_state_dict(state_dict['gen'])
         # Reinitilize schedulers
-        self.dis_scheduler = get_scheduler(self.dis_opt, hyperparameters, iterations)
-        self.gen_scheduler = get_scheduler(self.gen_opt, hyperparameters, iterations)
-        print('Resume from iteration %d' % iterations)
-        return iterations
+        self.dis_scheduler = get_scheduler(self.dis_opt, hyperparameters, epoch)
+        self.gen_scheduler = get_scheduler(self.gen_opt, hyperparameters, epoch)
+        print('Resume from epoch %d' % epoch)
+        return epoch
 
-    def save(self, snapshot_dir, iterations):
+    def save(self, snapshot_dir, epoch):
         # Save generators, discriminators, and optimizers
-        gen_name = os.path.join(snapshot_dir, 'gen_%08d.pt' % (iterations + 1))
-        dis_name = os.path.join(snapshot_dir, 'dis_%08d.pt' % (iterations + 1))
+        gen_name = os.path.join(snapshot_dir, 'gen_%08d.pt' % (epoch + 1))
+        dis_name = os.path.join(snapshot_dir, 'dis_%08d.pt' % (epoch + 1))
         opt_name = os.path.join(snapshot_dir, 'optimizer.pt')
         torch.save({'a': self.gen_a.state_dict(), 'b': self.gen_b.state_dict(),
                     'lane': self.lane_model.state_dict()}, gen_name)

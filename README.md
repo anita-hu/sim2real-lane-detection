@@ -14,6 +14,14 @@ Model weights are stored using Git LFS. Install [Git LFS](https://git-lfs.github
 ```
 git clone https://github.com/anita-hu/sim2real-lane-detection.git
 ```
+Training logs are done on [Weights & Biases](https://wandb.ai/site), please install with
+```
+pip install wandb
+```
+Login to your user where the credentials will be passed into the docker container with the launch script
+```
+wandb login
+```
 
 #### Docker
 Build docker image

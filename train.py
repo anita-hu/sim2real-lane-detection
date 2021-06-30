@@ -28,6 +28,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--config', type=str, default='configs/edges2handbags_folder.yaml', help='Path to the config file.')
 parser.add_argument('--output_path', type=str, default='.', help="outputs path")
 parser.add_argument("--resume", action="store_true")
+parser.add_argument('--trainer', type=str, default='MUNIT', help="MUNIT|UNIT")
+parser.add_argument('--entity', type=str, default='watonomous-perception-research',
+                    help="wandb team name, set to None for default entity (username)")
+parser.add_argument('--project', type=str, default='sim2real-lane-detection', help="wandb project name")
 opts = parser.parse_args()
 
 cudnn.benchmark = True
@@ -40,7 +44,7 @@ config['vgg_model_path'] = opts.output_path
 # initialize wandb
 config["trainer"] = opts.trainer
 config["resume"] = opts.resume
-wandb.init(entity="watonomous-perception-research", project='sim2real-lane-detection', config=config)
+wandb.init(entity=opts.entity, project=opts.project, config=config)
 
 # set the pytorch random seed manually for reproducability.
 torch.manual_seed(config["random_seed"])
@@ -86,11 +90,11 @@ checkpoint_directory, image_directory = prepare_sub_folder(output_directory)
 shutil.copy(opts.config, os.path.join(output_directory, 'config.yaml'))  # copy config file to output folder
 
 # Start training
-iterations = trainer.resume(checkpoint_directory, hyperparameters=config) if opts.resume else 0
+start_epoch = trainer.resume(checkpoint_directory, hyperparameters=config) if opts.resume else 0
 print("Beginning training..")
 best_val_metric = 0
 iter_per_epoch = min(len(train_loader_a), len(train_loader_b))
-for epoch in range(config['max_epoch']):
+for epoch in range(start_epoch, config['max_epoch']):
     print("Training epoch", epoch+1)
     for image_label_a, image_b in tqdm(zip(train_loader_a, train_loader_b), total=iter_per_epoch):
         if config["lane"]["use_aux"]:
@@ -127,6 +131,6 @@ for epoch in range(config['max_epoch']):
 
     # Save network weights
     if val_metric > best_val_metric:
-        trainer.save(checkpoint_directory, epoch+1)
+        trainer.save(checkpoint_directory, epoch)
         best_val_metric = val_metric
-        print("Saved best model at epoch", epoch+1)
+        print("Saved best model at epoch", epoch + 1)
