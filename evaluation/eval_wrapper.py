@@ -1,4 +1,3 @@
-from data.dataloader import get_test_loader
 from evaluation.tusimple.lane import LaneEval
 from evaluation.utils.dist_utils import is_main_process, dist_print, get_rank, get_world_size, dist_tqdm, synchronize
 import os, json, torch, scipy
@@ -44,13 +43,12 @@ def generate_lines(out, shape, names, output_path, griding_num, localization_typ
                     fp.write('\n')
 
 
-def run_test(net, data_root, exp_name, work_dir, griding_num, use_aux, distributed, batch_size=8):
+def run_test(net, loader, exp_name, work_dir, griding_num, use_aux):
     # torch.backends.cudnn.benchmark = True
     output_path = os.path.join(work_dir, exp_name)
     if not os.path.exists(output_path) and is_main_process():
         os.mkdir(output_path)
     synchronize()
-    loader = get_test_loader(batch_size, data_root, 'CULane', distributed)
     # import pdb;pdb.set_trace()
     for i, data in enumerate(dist_tqdm(loader)):
         imgs, names = data
@@ -85,10 +83,9 @@ def generate_tusimple_lines(out, shape, griding_num, localization_type='rel'):
     return lanes
 
 
-def run_test_tusimple(net, data_root, work_dir, exp_name, griding_num, use_aux, distributed, batch_size=8):
+def run_test_tusimple(net, loader, work_dir, exp_name, griding_num, use_aux):
     output_path = os.path.join(work_dir, exp_name + '.%d.txt' % get_rank())
     fp = open(output_path, 'w')
-    loader = get_test_loader(batch_size, data_root, 'Tusimple', distributed)
     for i, data in enumerate(dist_tqdm(loader)):
         imgs, names = data
         imgs = imgs.cuda()
@@ -133,13 +130,18 @@ def combine_tusimple_test(work_dir, exp_name):
         fp.writelines(all_res_no_dup)
 
 
-def eval_lane(net, dataset, data_root, work_dir, griding_num, use_aux, distributed):
+def eval_lane(net, dataset, data_root, loader, work_dir, griding_num, use_aux, partition="test"):
     net.eval()
+    eval_metric = None
+    assert partition in ["test", "val"]
     if dataset == 'CULane':
-        run_test(net, data_root, 'culane_eval_tmp', work_dir, griding_num, use_aux, distributed)
+        run_test(net, loader, 'culane_eval_tmp', work_dir, griding_num, use_aux)
         synchronize()  # wait for all results
         if is_main_process():
-            res = call_culane_eval(data_root, 'culane_eval_tmp', work_dir)
+            if partition == "test":
+                res = call_culane_eval(data_root, 'culane_eval_tmp', work_dir)
+            else:
+                res = call_culane_valid(data_root, 'culane_eval_tmp', work_dir)
             TP, FP, FN = 0, 0, 0
             for k, v in res.items():
                 val = float(v['Fmeasure']) if 'nan' not in v['Fmeasure'] else 0
@@ -148,24 +150,29 @@ def eval_lane(net, dataset, data_root, work_dir, griding_num, use_aux, distribut
                 FP += val_fp
                 FN += val_fn
                 dist_print(k, val)
-            P = TP * 1.0 / (TP + FP)
-            R = TP * 1.0 / (TP + FN)
-            F = 2 * P * R / (P + R)
-            dist_print(F)
+            P = TP * 1.0 / (TP + FP)  # Precision
+            R = TP * 1.0 / (TP + FN)  # Recall
+            F = 2 * P * R / (P + R) if (P + R) > 0 else 0  # F1, set to zero to avoid division by zero
+            dist_print("F1 score", F)
+            eval_metric = F
         synchronize()
 
-    elif dataset == 'Tusimple':
+    elif dataset == 'TuSimple':
         exp_name = 'tusimple_eval_tmp'
-        run_test_tusimple(net, data_root, work_dir, exp_name, griding_num, use_aux, distributed)
+        run_test_tusimple(net, loader, work_dir, exp_name, griding_num, use_aux)
         synchronize()  # wait for all results
         if is_main_process():
             combine_tusimple_test(work_dir, exp_name)
             res = LaneEval.bench_one_submit(os.path.join(work_dir, exp_name + '.txt'),
-                                            os.path.join(data_root, 'test_label.json'))
+                                            os.path.join(data_root, f'{partition}_label.json'))
             res = json.loads(res)
-            for r in res:
-                dist_print(r['name'], r['value'])
+            eval_metric = res[0]['value']  # Accuracy
+            dist_print("Accuracy %.5f" % eval_metric)
         synchronize()
+    else:
+        raise NotImplementedError("Only support CULane|TuSimple")
+
+    return eval_metric
 
 
 def read_helper(path):
@@ -178,7 +185,37 @@ def read_helper(path):
     return res
 
 
+def call_culane_valid(data_dir, exp_name, output_path):
+    # Run on validation set
+    if data_dir[-1] != '/':
+        data_dir = data_dir + '/'
+    detect_dir = os.path.join(output_path, exp_name) + '/'
+
+    w_lane = 30
+    iou = 0.5  # Set iou to 0.3 or 0.5
+    im_w = 1640
+    im_h = 590
+    frame = 1
+    list0 = os.path.join(data_dir, 'list/val.txt')
+    if not os.path.exists(os.path.join(output_path, 'txt')):
+        os.mkdir(os.path.join(output_path, 'txt'))
+    out0 = os.path.join(output_path, 'txt', 'out_val.txt')
+
+    eval_cmd = './evaluation/culane/evaluate'
+    if platform.system() == 'Windows':
+        eval_cmd = eval_cmd.replace('/', os.sep)
+
+    # print('./evaluate -a %s -d %s -i %s -l %s -w %s -t %s -c %s -r %s -f %s -o %s'%(data_dir,detect_dir,data_dir,list0,w_lane,iou,im_w,im_h,frame,out0))
+    os.system('%s -a %s -d %s -i %s -l %s -w %s -t %s -c %s -r %s -f %s -o %s' % (
+    eval_cmd, data_dir, detect_dir, data_dir, list0, w_lane, iou, im_w, im_h, frame, out0))
+    res_all = {}
+    res_all['res_val'] = read_helper(out0)
+
+    return res_all
+
+
 def call_culane_eval(data_dir, exp_name, output_path):
+    # Run on test set
     if data_dir[-1] != '/':
         data_dir = data_dir + '/'
     detect_dir = os.path.join(output_path, exp_name) + '/'

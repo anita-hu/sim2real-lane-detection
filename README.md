@@ -32,7 +32,7 @@ Please see [DATASET.md](./DATASET.md)
 
 #### Training
 ```
-python train.py --trainer UNIT --config configs/unit_sample_config.yaml
+python train.py --config configs/unit_sample_config.yaml
 ```
 
 #### Evaluating
@@ -43,11 +43,9 @@ make
 ```
 For evaluation, run
 ```
-mkdir results
-
-python test.py configs/culane.py --test_model path_to_culane.pth --test_work_dir ./results
-
-python test.py configs/tusimple.py --test_model path_to_tusimple.pth --test_work_dir ./results
+python test.py --config configs/unit_sample_config.yaml \
+               --checkpoint outputs/unit_sample_config/checkpoints/gen_00020000.pt \
+               --output_folder results
 ```
 
 ### Reference

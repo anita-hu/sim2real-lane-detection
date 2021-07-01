@@ -24,5 +24,8 @@ RUN mkdir -p build
 RUN cd build && cmake  ../opencv-master && cmake --build .
 RUN ln -s /usr/local/include/opencv4/opencv2 /usr/local/include/opencv2
 
+# Other evaluation deps
+RUN pip install scikit-learn
+
 RUN useradd -m dev
 USER dev
