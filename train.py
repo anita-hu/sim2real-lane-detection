@@ -6,13 +6,15 @@ Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses
 NOTE:
 By convention, dataset A will be simulation, labelled data, while dataset B will be real-world without labels
 """
-from utils import prepare_sub_folder, write_html, write_loss, get_config, write_2images, Timer
+from utils import prepare_sub_folder, write_loss, get_config, write_2images, Timer
 import argparse
+from tqdm import tqdm
 from trainers import MUNIT_Trainer, UNIT_Trainer
 import torch.backends.cudnn as cudnn
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from data.dataloader import get_train_loader, get_test_loader
+from evaluation.eval_wrapper import eval_lane
 
 try:
     from itertools import izip as zip
@@ -26,14 +28,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--config', type=str, default='configs/edges2handbags_folder.yaml', help='Path to the config file.')
 parser.add_argument('--output_path', type=str, default='.', help="outputs path")
 parser.add_argument("--resume", action="store_true")
-parser.add_argument('--trainer', type=str, default='MUNIT', help="MUNIT|UNIT")
 opts = parser.parse_args()
 
 cudnn.benchmark = True
 
 # Load experiment setting
 config = get_config(opts.config)
-max_iter = config['max_iter']
 display_size = config['display_size']
 config['vgg_model_path'] = opts.output_path
 
@@ -53,14 +53,15 @@ train_loader_b = get_train_loader(config["batch_size"], config["dataB_root"],
                                   num_lanes=config["lane"]["num_lanes"],
                                   image_dim=(config["input_height"], config["input_width"]))
 
-test_loader_b = get_test_loader(batch_size=config["batch_size"], data_root=config["dataB_root"],
-                                dataset=config["datasetB"], distributed=False,
-                                image_dim=(config["input_height"], config["input_width"]))
+val_loader_b = get_test_loader(batch_size=config["batch_size"], data_root=config["dataB_root"],
+                               dataset=config["datasetB"], distributed=False,
+                               image_dim=(config["input_height"], config["input_width"]),
+                               partition="val")
 
 # Setup model
-if opts.trainer == 'MUNIT':
+if config['trainer'] == 'MUNIT':
     trainer = MUNIT_Trainer(config)
-elif opts.trainer == 'UNIT':
+elif config['trainer'] == 'UNIT':
     trainer = UNIT_Trainer(config)
 else:
     sys.exit("Only support MUNIT|UNIT")
@@ -68,7 +69,7 @@ trainer.cuda()
 
 train_display_images_a = torch.stack([train_loader_a.dataset[i][0] for i in range(display_size)]).cuda()
 train_display_images_b = torch.stack([train_loader_b.dataset[i] for i in range(display_size)]).cuda()
-test_display_images_b = torch.stack([test_loader_b.dataset[i][0] for i in range(display_size)]).cuda()
+test_display_images_b = torch.stack([val_loader_b.dataset[i][0] for i in range(display_size)]).cuda()
 
 # Setup logger and output folders
 model_name = os.path.splitext(os.path.basename(opts.config))[0]
@@ -79,9 +80,12 @@ shutil.copy(opts.config, os.path.join(output_directory, 'config.yaml'))  # copy 
 
 # Start training
 iterations = trainer.resume(checkpoint_directory, hyperparameters=config) if opts.resume else 0
-print("Beginning training")
-while True:
-    for it, (image_label_a, image_b) in enumerate(zip(train_loader_a, train_loader_b)):
+print("Beginning training..")
+best_val_metric = 0
+iter_per_epoch = min(len(train_loader_a), len(train_loader_b))
+for epoch in range(config['max_epoch']):
+    print("Training epoch", epoch+1)
+    for image_label_a, image_b in tqdm(zip(train_loader_a, train_loader_b), total=iter_per_epoch):
         if config["lane"]["use_aux"]:
             images_a, cls_label, seg_label = image_label_a
             images_a = images_a.cuda().detach()
@@ -92,37 +96,30 @@ while True:
 
         images_b = image_b.cuda().detach()
 
-        with Timer("Elapsed time in update: %f"):
-            # Main training code
-            trainer.dis_update(images_a, images_b, config)
-            trainer.gen_update(images_a, images_b, label_a, config)
-            torch.cuda.synchronize()
-
-        # Dump training stats in log file
-        if (iterations + 1) % config['log_iter'] == 0:
-            print("Iteration: %08d/%08d" % (iterations + 1, max_iter))
-            write_loss(iterations, trainer, train_writer)
-
-        # Write images
-        if (iterations + 1) % config['image_save_iter'] == 0:
-            with torch.no_grad():
-                test_image_outputs = trainer.sample(train_display_images_a, test_display_images_b)
-                train_image_outputs = trainer.sample(train_display_images_a, train_display_images_b)
-            write_2images(test_image_outputs, display_size, image_directory, 'test_%08d' % (iterations + 1))
-            write_2images(train_image_outputs, display_size, image_directory, 'train_%08d' % (iterations + 1))
-            # HTML
-            write_html(output_directory + "/index.html", iterations + 1, config['image_save_iter'], 'images')
-
-        if (iterations + 1) % config['image_display_iter'] == 0:
-            with torch.no_grad():
-                image_outputs = trainer.sample(train_display_images_a, train_display_images_b)
-            write_2images(image_outputs, display_size, image_directory, 'train_current')
-
-        # Save network weights
-        if (iterations + 1) % config['snapshot_save_iter'] == 0:
-            trainer.save(checkpoint_directory, iterations)
+        # Main training code
+        trainer.dis_update(images_a, images_b, config)
+        trainer.gen_update(images_a, images_b, label_a, config)
+        torch.cuda.synchronize()
 
         trainer.update_learning_rate()
-        iterations += 1
-        if iterations >= max_iter:
-            sys.exit('Finish training')
+
+    write_loss(epoch, trainer, train_writer)
+
+    # Write images
+    if (epoch + 1) % config['image_save_epoch'] == 0:
+        with torch.no_grad():
+            test_image_outputs = trainer.sample(train_display_images_a, test_display_images_b)
+            train_image_outputs = trainer.sample(train_display_images_a, train_display_images_b)
+        write_2images(test_image_outputs, display_size, image_directory, 'test_%08d' % (iterations + 1))
+        write_2images(train_image_outputs, display_size, image_directory, 'train_%08d' % (iterations + 1))
+
+    print("Validating epoch", epoch + 1)
+    with Timer("Elapsed time in validation: %f"):
+        val_metric = eval_lane(trainer, config['datasetB'], config['dataB_root'], val_loader_b, output_directory,
+                               config['lane']['griding_num'], config['lane']['use_aux'], "val")
+
+    # Save network weights
+    if val_metric > best_val_metric:
+        trainer.save(checkpoint_directory, epoch+1)
+        best_val_metric = val_metric
+        print("Saved best model at epoch", epoch+1)
