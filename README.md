@@ -40,19 +40,19 @@ Please see [DATASET.md](./DATASET.md)
 
 #### Training
 ```
-python train.py --config configs/unit_sample_config.yaml
+python train.py --config configs/unit.yaml
 ```
 
 #### Evaluating
-Build the evaluation tool
+Within the docker container, build the evaluation tool
 ```
 cd evaluation/culane
 make
 ```
 For evaluation, run
 ```
-python test.py --config configs/unit_sample_config.yaml \
-               --checkpoint outputs/unit_sample_config/checkpoints/gen_00020000.pt \
+python test.py --config configs/unit.yaml \
+               --checkpoint outputs/unit/checkpoints/gen.pt \
                --output_folder results
 ```
 

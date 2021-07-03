@@ -53,6 +53,7 @@ def synchronize():
         return
     dist.barrier()
 
+
 def dist_cat_reduce_tensor(tensor):
     if not dist.is_available():
         return tensor
@@ -67,6 +68,7 @@ def dist_cat_reduce_tensor(tensor):
     # dist_print(all_list[0][3],all_list[1][3],all_list[2][3],all_list[3][3])
     # dist_print(all_list[0].shape)
     return torch.cat(all_list,dim = 0)
+
 
 def dist_sum_reduce_tensor(tensor):
     if not dist.is_available():
@@ -127,39 +129,6 @@ def all_gather(data):
         data_list.append(pickle.loads(buffer))
 
     return data_list
-
-
-from torch.utils.tensorboard import SummaryWriter
-
-
-class DistSummaryWriter(SummaryWriter):
-    def __init__(self, *args, **kwargs):
-        if can_log():
-            super(DistSummaryWriter, self).__init__(*args, **kwargs)
-
-    def add_scalar(self, *args, **kwargs):
-        if can_log():
-            super(DistSummaryWriter, self).add_scalar(*args, **kwargs)
-
-    def add_figure(self, *args, **kwargs):
-        if can_log():
-            super(DistSummaryWriter, self).add_figure(*args, **kwargs)
-
-    def add_graph(self, *args, **kwargs):
-        if can_log():
-            super(DistSummaryWriter, self).add_graph(*args, **kwargs)
-
-    def add_histogram(self, *args, **kwargs):
-        if can_log():
-            super(DistSummaryWriter, self).add_histogram(*args, **kwargs)
-    
-    def add_image(self, *args, **kwargs):
-        if can_log():
-            super(DistSummaryWriter, self).add_image(*args, **kwargs)
-
-    def close(self):
-        if can_log():
-            super(DistSummaryWriter, self).close()
 
 
 import tqdm
