@@ -1,10 +1,6 @@
 """
 Copyright (C) 2018 NVIDIA Corporation.  All rights reserved.
 Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
-
-
-NOTE:
-By convention, dataset A will be simulation, labelled data, while dataset B will be real-world without labels
 """
 from utils import prepare_sub_folder, write_loss, get_config, write_2images, Timer
 import argparse
@@ -44,7 +40,7 @@ config["trainer"] = opts.trainer
 config["resume"] = opts.resume
 wandb.init(entity=opts.entity, project=opts.project, config=config)
 
-# set random seed for reproducability
+# set random seed for reproducibility
 torch.manual_seed(config["random_seed"])  # cpu
 torch.cuda.manual_seed_all(config["random_seed"])  # gpu
 torch.backends.cudnn.enabled = False
@@ -52,6 +48,7 @@ torch.backends.cudnn.benchmark = False
 torch.backends.cudnn.deterministic = True
 
 # Setup data loaders
+# NOTE: By convention, dataset A will be simulation, labelled data, while dataset B will be real-world without labels
 print(f"Loading {config['datasetA']} as dataset A. (labelled, simulated)")
 train_loader_a = get_train_loader(config["batch_size"], config["dataA_root"],
                                   griding_num=config["lane"]["griding_num"], dataset=config["datasetA"],

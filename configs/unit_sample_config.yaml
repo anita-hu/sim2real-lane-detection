@@ -58,8 +58,9 @@ input_dim_b: 3                # number of image channels [1/3]
 input_height: 180             # resized image height
 input_width: 500              # resized image width
 
-datasetA: WATO  # one of CULane, TuSimple, WATO
+# By convention, dataset A will be simulation, labelled data, while dataset B will be real-world without labels
+datasetA: WATO
 dataA_root: /datasets/WATO     # dataset folder location
 
-datasetB: TuSimple  # one of CULane, TuSimple, WATO
+datasetB: TuSimple  # one of CULane, TuSimple
 dataB_root: /datasets/TuSimple     # dataset folder location

@@ -79,6 +79,7 @@ def get_data_loader_list(root, file_list, batch_size, train, new_size=None,
     loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=train, drop_last=True, num_workers=num_workers)
     return loader
 
+
 def get_data_loader_folder(input_folder, batch_size, train, new_size=None,
                            height=256, width=256, num_workers=4, crop=True):
     transform_list = [transforms.ToTensor(),
@@ -245,54 +246,3 @@ class Timer:
 
     def __exit__(self, exc_type, exc_value, exc_tb):
         print(self.msg % (time.time() - self.start_time))
-
-
-def pytorch03_to_pytorch04(state_dict_base):
-    def __conversion_core(state_dict_base):
-        state_dict = state_dict_base.copy()
-        for key, value in state_dict_base.items():
-            if key.endswith(('enc.model.0.norm.running_mean',
-                             'enc.model.0.norm.running_var',
-                             'enc.model.1.norm.running_mean',
-                             'enc.model.1.norm.running_var',
-                             'enc.model.2.norm.running_mean',
-                             'enc.model.2.norm.running_var',
-                             'enc.model.3.model.0.model.1.norm.running_mean',
-                             'enc.model.3.model.0.model.1.norm.running_var',
-                             'enc.model.3.model.0.model.0.norm.running_mean',
-                             'enc.model.3.model.0.model.0.norm.running_var',
-                             'enc.model.3.model.1.model.1.norm.running_mean',
-                             'enc.model.3.model.1.model.1.norm.running_var',
-                             'enc.model.3.model.1.model.0.norm.running_mean',
-                             'enc.model.3.model.1.model.0.norm.running_var',
-                             'enc.model.3.model.2.model.1.norm.running_mean',
-                             'enc.model.3.model.2.model.1.norm.running_var',
-                             'enc.model.3.model.2.model.0.norm.running_mean',
-                             'enc.model.3.model.2.model.0.norm.running_var',
-                             'enc.model.3.model.3.model.1.norm.running_mean',
-                             'enc.model.3.model.3.model.1.norm.running_var',
-                             'enc.model.3.model.3.model.0.norm.running_mean',
-                             'enc.model.3.model.3.model.0.norm.running_var',
-                             'dec.model.0.model.0.model.1.norm.running_mean',
-                             'dec.model.0.model.0.model.1.norm.running_var',
-                             'dec.model.0.model.0.model.0.norm.running_mean',
-                             'dec.model.0.model.0.model.0.norm.running_var',
-                             'dec.model.0.model.1.model.1.norm.running_mean',
-                             'dec.model.0.model.1.model.1.norm.running_var',
-                             'dec.model.0.model.1.model.0.norm.running_mean',
-                             'dec.model.0.model.1.model.0.norm.running_var',
-                             'dec.model.0.model.2.model.1.norm.running_mean',
-                             'dec.model.0.model.2.model.1.norm.running_var',
-                             'dec.model.0.model.2.model.0.norm.running_mean',
-                             'dec.model.0.model.2.model.0.norm.running_var',
-                             'dec.model.0.model.3.model.1.norm.running_mean',
-                             'dec.model.0.model.3.model.1.norm.running_var',
-                             'dec.model.0.model.3.model.0.norm.running_mean',
-                             'dec.model.0.model.3.model.0.norm.running_var',
-                             )):
-                del state_dict[key]
-        return state_dict
-    state_dict = dict()
-    state_dict['a'] = __conversion_core(state_dict_base['a'])
-    state_dict['b'] = __conversion_core(state_dict_base['b'])
-    return state_dict
