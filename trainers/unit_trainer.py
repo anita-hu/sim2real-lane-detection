@@ -189,16 +189,14 @@ class UNIT_Trainer(nn.Module):
 
     def resume(self, checkpoint_dir, hyperparameters):
         # Load generators
-        last_model_name = get_model_list(checkpoint_dir, "gen")
-        state_dict = torch.load(last_model_name)
+        state_dict = torch.load(os.path.join(checkpoint_dir, "gen.pt"))
         self.gen_a.load_state_dict(state_dict['a'])
         self.gen_b.load_state_dict(state_dict['b'])
-        epoch = int(last_model_name[-11:-3])
+        epoch = state_dict["epoch"]
         # Load lane model
         self.lane_model.load_state_dict(state_dict['lane'])
         # Load discriminators
-        last_model_name = get_model_list(checkpoint_dir, "dis")
-        state_dict = torch.load(last_model_name)
+        state_dict = torch.load(os.path.join(checkpoint_dir, "dis.pt"))
         self.dis_a.load_state_dict(state_dict['a'])
         self.dis_b.load_state_dict(state_dict['b'])
         # Load optimizers
@@ -213,10 +211,10 @@ class UNIT_Trainer(nn.Module):
 
     def save(self, snapshot_dir, epoch):
         # Save generators, discriminators, and optimizers
-        gen_name = os.path.join(snapshot_dir, 'gen_%08d.pt' % (epoch + 1))
-        dis_name = os.path.join(snapshot_dir, 'dis_%08d.pt' % (epoch + 1))
+        gen_name = os.path.join(snapshot_dir, 'gen.pt')
+        dis_name = os.path.join(snapshot_dir, 'dis.pt')
         opt_name = os.path.join(snapshot_dir, 'optimizer.pt')
         torch.save({'a': self.gen_a.state_dict(), 'b': self.gen_b.state_dict(),
-                    'lane': self.lane_model.state_dict()}, gen_name)
-        torch.save({'a': self.dis_a.state_dict(), 'b': self.dis_b.state_dict()}, dis_name)
-        torch.save({'gen': self.gen_opt.state_dict(), 'dis': self.dis_opt.state_dict()}, opt_name)
+                    'lane': self.lane_model.state_dict(), 'epoch': epoch + 1}, gen_name)
+        torch.save({'a': self.dis_a.state_dict(), 'b': self.dis_b.state_dict(), 'epoch': epoch + 1}, dis_name)
+        torch.save({'gen': self.gen_opt.state_dict(), 'dis': self.dis_opt.state_dict(), 'epoch': epoch + 1}, opt_name)

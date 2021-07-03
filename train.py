@@ -94,7 +94,7 @@ print("Beginning training..")
 best_val_metric = 0
 iter_per_epoch = min(len(train_loader_a), len(train_loader_b))
 for epoch in range(start_epoch, config['max_epoch']):
-    print("Training epoch", epoch+1)
+    print("Training epoch", epoch + 1)
     for image_label_a, image_b in tqdm(zip(train_loader_a, train_loader_b), total=iter_per_epoch):
         if config["lane"]["use_aux"]:
             images_a, cls_label, seg_label = image_label_a
@@ -125,8 +125,11 @@ for epoch in range(start_epoch, config['max_epoch']):
 
     print("Validating epoch", epoch + 1)
     with Timer("Elapsed time in validation: %f"):
-        val_metric = eval_lane(trainer, config['datasetB'], config['dataB_root'], val_loader_b, output_directory,
-                               config['lane']['griding_num'], config['lane']['use_aux'], "val")
+        log_dict, val_metric = eval_lane(trainer, config['datasetB'], config['dataB_root'], val_loader_b,
+                                         output_directory, config['lane']['griding_num'], config['lane']['use_aux'],
+                                         "val")
+
+    wandb.log(log_dict, step=(epoch + 1))
 
     # Save network weights
     if val_metric > best_val_metric:
