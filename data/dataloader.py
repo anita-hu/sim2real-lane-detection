@@ -83,7 +83,7 @@ def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distr
                                        num_lanes=num_lanes,
                                        return_label=return_label)
     else:
-        raise NotImplementedError
+        raise NotImplementedError("Only support CULane|TuSimple|WATO")
 
     if distributed:
         sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
@@ -95,20 +95,21 @@ def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distr
     return train_loader
 
 
-def get_test_loader(batch_size, data_root, dataset, distributed, image_dim=(288, 800)):
+def get_test_loader(batch_size, data_root, dataset, distributed, image_dim=(288, 800), partition='test'):
     img_transforms = transforms.Compose([
         transforms.Resize(image_dim),
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
     ])
+    assert partition in ['test', 'val']
     if dataset == 'CULane':
-        test_dataset = LaneTestDataset(data_root, os.path.join(data_root, 'list/test.txt'),
+        test_dataset = LaneTestDataset(data_root, os.path.join(data_root, f'list/{partition}.txt'),
                                        img_transform=img_transforms)
     elif dataset == 'TuSimple':
-        test_dataset = LaneTestDataset(data_root, os.path.join(data_root, 'test.txt'), img_transform=img_transforms)
-
-    elif dataset == 'WATO':
-        test_dataset = LaneTestDataset(data_root, os.path.join(data_root, 'test.txt'), img_transform=img_transforms)
+        test_dataset = LaneTestDataset(data_root, os.path.join(data_root, f'{partition}.txt'),
+                                       img_transform=img_transforms)
+    else:
+        raise NotImplementedError("Only support CULane|TuSimple")
 
     if distributed:
         sampler = SeqDistributedSampler(test_dataset, shuffle=False)
