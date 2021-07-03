@@ -6,7 +6,6 @@ from utils import prepare_sub_folder, write_loss, get_config, write_2images, Tim
 import argparse
 from tqdm import tqdm
 from trainers import MUNIT_Trainer, UNIT_Trainer
-import torch.backends.cudnn as cudnn
 import torch
 from data.dataloader import get_train_loader, get_test_loader
 from evaluation.eval_wrapper import eval_lane
@@ -39,10 +38,7 @@ config["resume"] = opts.resume
 wandb.init(entity=opts.entity, project=opts.project, config=config)
 
 # set random seed for reproducibility
-torch.manual_seed(config["random_seed"])  # cpu
-torch.cuda.manual_seed_all(config["random_seed"])  # gpu
-torch.backends.cudnn.enabled = False
-torch.backends.cudnn.benchmark = False
+torch.manual_seed(config["random_seed"])
 torch.backends.cudnn.deterministic = True
 
 # Setup data loaders
