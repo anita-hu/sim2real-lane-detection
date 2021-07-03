@@ -113,11 +113,11 @@ def make_grid(image_outputs, display_image_num):
     return image_grid
 
 
-def write_2images(image_outputs, display_image_num, iteration, postfix):
+def write_2images(image_outputs, display_image_num, epoch, postfix, step=None):
     n = len(image_outputs)
     a2b = wandb.Image(make_grid(image_outputs[0:n//2], display_image_num))
     b2a = wandb.Image(make_grid(image_outputs[n//2:n], display_image_num))
-    wandb.log({f"a2b_{postfix}": a2b, f"b2a_{postfix}": b2a}, step=iteration)
+    wandb.log({f"a2b_{postfix}": a2b, f"b2a_{postfix}": b2a, "epoch": epoch}, step=step)
 
 
 def prepare_sub_folder(output_directory):

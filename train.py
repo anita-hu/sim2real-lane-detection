@@ -88,6 +88,7 @@ start_epoch = trainer.resume(checkpoint_directory, hyperparameters=config) if op
 print("Beginning training..")
 best_val_metric = 0
 iter_per_epoch = min(len(train_loader_a), len(train_loader_b))
+iterations = start_epoch * iter_per_epoch if opts.resume else 0
 for epoch in range(start_epoch, config['max_epoch']):
     print("Training epoch", epoch + 1)
     for image_label_a, image_b in tqdm(zip(train_loader_a, train_loader_b), total=iter_per_epoch):
@@ -106,17 +107,19 @@ for epoch in range(start_epoch, config['max_epoch']):
         trainer.gen_update(images_a, images_b, label_a, config)
         torch.cuda.synchronize()
 
-        trainer.update_learning_rate()
+        if (iterations + 1) % config['loss_log_iter'] == 0:
+            write_loss(iterations + 1, trainer)
 
-    write_loss(epoch + 1, trainer)
+        trainer.update_learning_rate()
+        iterations += 1
 
     # Write images
     if (epoch + 1) % config['image_save_epoch'] == 0:
         with torch.no_grad():
             test_image_outputs = trainer.sample(train_display_images_a, test_display_images_b)
             train_image_outputs = trainer.sample(train_display_images_a, train_display_images_b)
-        write_2images(test_image_outputs, display_size, epoch + 1, 'test')
-        write_2images(train_image_outputs, display_size, epoch + 1, 'train')
+        write_2images(test_image_outputs, display_size, epoch + 1, 'test', step=iterations)
+        write_2images(train_image_outputs, display_size, epoch + 1, 'train', step=iterations)
 
     print("Validating epoch", epoch + 1)
     with Timer("Elapsed time in validation: %f"):
@@ -124,7 +127,8 @@ for epoch in range(start_epoch, config['max_epoch']):
                                          output_directory, config['lane']['griding_num'], config['lane']['use_aux'],
                                          "val")
 
-    wandb.log(log_dict, step=(epoch + 1))
+    log_dict["epoch"] = epoch + 1
+    wandb.log(log_dict, step=iterations)
 
     # Save network weights
     if val_metric > best_val_metric:
