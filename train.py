@@ -24,7 +24,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--config', type=str, default='configs/edges2handbags_folder.yaml', help='Path to the config file.')
 parser.add_argument('--output_path', type=str, default='.', help="outputs path")
 parser.add_argument("--resume", action="store_true")
-parser.add_argument('--trainer', type=str, default='MUNIT', help="MUNIT|UNIT")
 parser.add_argument('--entity', type=str, default='watonomous-perception-research',
                     help="wandb team name, set to None for default entity (username)")
 parser.add_argument('--project', type=str, default='sim2real-lane-detection', help="wandb project name")
@@ -34,10 +33,9 @@ opts = parser.parse_args()
 config = get_config(opts.config)
 display_size = config['display_size']
 config['vgg_model_path'] = opts.output_path
+config["resume"] = opts.resume
 
 # initialize wandb
-config["trainer"] = opts.trainer
-config["resume"] = opts.resume
 wandb.init(entity=opts.entity, project=opts.project, config=config)
 
 # set random seed for reproducibility
@@ -70,6 +68,7 @@ val_loader_b = get_test_loader(batch_size=config["batch_size"], data_root=config
                                partition="val")
 
 # Setup model
+print(f"Loading {config['trainer']} trainer")
 if config['trainer'] == 'MUNIT':
     trainer = MUNIT_Trainer(config)
 elif config['trainer'] == 'UNIT':
