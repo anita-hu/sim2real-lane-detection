@@ -2,4 +2,4 @@
 
 dir=$(dirname $(realpath -s $0))
 dataset_root=$1
-docker run -v $dir:/workspace -v $dataset_root:/datasets -it --gpus all sim2real /bin/bash
+wandb docker-run -v $dir:/workspace -v $dataset_root:/datasets -it --ipc host --gpus all sim2real /bin/bash

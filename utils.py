@@ -16,6 +16,7 @@ import yaml
 import numpy as np
 import torch.nn.init as init
 import time
+import wandb
 # Methods
 # get_all_data_loaders      : primary data loader interface (load trainA, testA, trainB, testB)
 # get_data_loader_list      : list-based data loader
@@ -23,9 +24,7 @@ import time
 # get_config                : load yaml file
 # eformat                   :
 # write_2images             : save output image
-# prepare_sub_folder        : create checkpoints and images folders for saving outputs
-# write_one_row_html        : write one row of the html file for output images
-# write_html                : create the html file.
+# prepare_sub_folder        : create checkpoints for saving outputs
 # write_loss
 # slerp
 # get_slerp_interp
@@ -80,6 +79,7 @@ def get_data_loader_list(root, file_list, batch_size, train, new_size=None,
     loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=train, drop_last=True, num_workers=num_workers)
     return loader
 
+
 def get_data_loader_folder(input_folder, batch_size, train, new_size=None,
                            height=256, width=256, num_workers=4, crop=True):
     transform_list = [transforms.ToTensor(),
@@ -106,72 +106,34 @@ def eformat(f, prec):
     return "%se%d"%(mantissa, int(exp))
 
 
-def __write_images(image_outputs, display_image_num, file_name):
+def make_grid(image_outputs, display_image_num):
     image_outputs = [images.expand(-1, 3, -1, -1) for images in image_outputs] # expand gray-scale images to 3 channels
     image_tensor = torch.cat([images[:display_image_num] for images in image_outputs], 0)
     image_grid = vutils.make_grid(image_tensor.data, nrow=display_image_num, padding=0, normalize=True)
-    vutils.save_image(image_grid, file_name, nrow=1)
+    return image_grid
 
 
-def write_2images(image_outputs, display_image_num, image_directory, postfix):
+def write_2images(image_outputs, display_image_num, epoch, postfix, step=None):
     n = len(image_outputs)
-    __write_images(image_outputs[0:n//2], display_image_num, '%s/gen_a2b_%s.jpg' % (image_directory, postfix))
-    __write_images(image_outputs[n//2:n], display_image_num, '%s/gen_b2a_%s.jpg' % (image_directory, postfix))
+    a2b = wandb.Image(make_grid(image_outputs[0:n//2], display_image_num))
+    b2a = wandb.Image(make_grid(image_outputs[n//2:n], display_image_num))
+    wandb.log({f"a2b_{postfix}": a2b, f"b2a_{postfix}": b2a, "epoch": epoch}, step=step)
 
 
 def prepare_sub_folder(output_directory):
-    image_directory = os.path.join(output_directory, 'images')
-    if not os.path.exists(image_directory):
-        print("Creating directory: {}".format(image_directory))
-        os.makedirs(image_directory)
     checkpoint_directory = os.path.join(output_directory, 'checkpoints')
     if not os.path.exists(checkpoint_directory):
         print("Creating directory: {}".format(checkpoint_directory))
         os.makedirs(checkpoint_directory)
-    return checkpoint_directory, image_directory
+    return checkpoint_directory
 
 
-def write_one_row_html(html_file, iterations, img_filename, all_size):
-    html_file.write("<h3>iteration [%d] (%s)</h3>" % (iterations,img_filename.split('/')[-1]))
-    html_file.write("""
-        <p><a href="%s">
-          <img src="%s" style="width:%dpx">
-        </a><br>
-        <p>
-        """ % (img_filename, img_filename, all_size))
-    return
-
-
-def write_html(filename, iterations, image_save_iterations, image_directory, all_size=1536):
-    html_file = open(filename, "w")
-    html_file.write('''
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Experiment name = %s</title>
-      <meta http-equiv="refresh" content="30">
-    </head>
-    <body>
-    ''' % os.path.basename(filename))
-    html_file.write("<h3>current</h3>")
-    write_one_row_html(html_file, iterations, '%s/gen_a2b_train_current.jpg' % (image_directory), all_size)
-    write_one_row_html(html_file, iterations, '%s/gen_b2a_train_current.jpg' % (image_directory), all_size)
-    for j in range(iterations, image_save_iterations-1, -1):
-        if j % image_save_iterations == 0:
-            write_one_row_html(html_file, j, '%s/gen_a2b_test_%08d.jpg' % (image_directory, j), all_size)
-            write_one_row_html(html_file, j, '%s/gen_b2a_test_%08d.jpg' % (image_directory, j), all_size)
-            write_one_row_html(html_file, j, '%s/gen_a2b_train_%08d.jpg' % (image_directory, j), all_size)
-            write_one_row_html(html_file, j, '%s/gen_b2a_train_%08d.jpg' % (image_directory, j), all_size)
-    html_file.write("</body></html>")
-    html_file.close()
-
-
-def write_loss(iterations, trainer, train_writer):
+def write_loss(iterations, trainer):
     members = [attr for attr in dir(trainer) \
-               if not callable(getattr(trainer, attr)) and not attr.startswith("__") and ('loss' in attr or 'grad' in attr or 'nwd' in attr)]
-    for m in members:
-        train_writer.add_scalar(m, getattr(trainer, m), iterations + 1)
-    train_writer.flush()
+               if not callable(getattr(trainer, attr)) and not attr.startswith("_") and ('loss' in attr or 'grad' in attr or 'nwd' in attr)]
+    log_dict = {m: getattr(trainer, m) for m in members}
+    log_dict.update(trainer.log_dict)  # additional losses
+    wandb.log(log_dict, step=iterations)
 
 
 def slerp(val, low, high):
@@ -285,54 +247,3 @@ class Timer:
 
     def __exit__(self, exc_type, exc_value, exc_tb):
         print(self.msg % (time.time() - self.start_time))
-
-
-def pytorch03_to_pytorch04(state_dict_base):
-    def __conversion_core(state_dict_base):
-        state_dict = state_dict_base.copy()
-        for key, value in state_dict_base.items():
-            if key.endswith(('enc.model.0.norm.running_mean',
-                             'enc.model.0.norm.running_var',
-                             'enc.model.1.norm.running_mean',
-                             'enc.model.1.norm.running_var',
-                             'enc.model.2.norm.running_mean',
-                             'enc.model.2.norm.running_var',
-                             'enc.model.3.model.0.model.1.norm.running_mean',
-                             'enc.model.3.model.0.model.1.norm.running_var',
-                             'enc.model.3.model.0.model.0.norm.running_mean',
-                             'enc.model.3.model.0.model.0.norm.running_var',
-                             'enc.model.3.model.1.model.1.norm.running_mean',
-                             'enc.model.3.model.1.model.1.norm.running_var',
-                             'enc.model.3.model.1.model.0.norm.running_mean',
-                             'enc.model.3.model.1.model.0.norm.running_var',
-                             'enc.model.3.model.2.model.1.norm.running_mean',
-                             'enc.model.3.model.2.model.1.norm.running_var',
-                             'enc.model.3.model.2.model.0.norm.running_mean',
-                             'enc.model.3.model.2.model.0.norm.running_var',
-                             'enc.model.3.model.3.model.1.norm.running_mean',
-                             'enc.model.3.model.3.model.1.norm.running_var',
-                             'enc.model.3.model.3.model.0.norm.running_mean',
-                             'enc.model.3.model.3.model.0.norm.running_var',
-                             'dec.model.0.model.0.model.1.norm.running_mean',
-                             'dec.model.0.model.0.model.1.norm.running_var',
-                             'dec.model.0.model.0.model.0.norm.running_mean',
-                             'dec.model.0.model.0.model.0.norm.running_var',
-                             'dec.model.0.model.1.model.1.norm.running_mean',
-                             'dec.model.0.model.1.model.1.norm.running_var',
-                             'dec.model.0.model.1.model.0.norm.running_mean',
-                             'dec.model.0.model.1.model.0.norm.running_var',
-                             'dec.model.0.model.2.model.1.norm.running_mean',
-                             'dec.model.0.model.2.model.1.norm.running_var',
-                             'dec.model.0.model.2.model.0.norm.running_mean',
-                             'dec.model.0.model.2.model.0.norm.running_var',
-                             'dec.model.0.model.3.model.1.norm.running_mean',
-                             'dec.model.0.model.3.model.1.norm.running_var',
-                             'dec.model.0.model.3.model.0.norm.running_mean',
-                             'dec.model.0.model.3.model.0.norm.running_var',
-                             )):
-                del state_dict[key]
-        return state_dict
-    state_dict = dict()
-    state_dict['a'] = __conversion_core(state_dict_base['a'])
-    state_dict['b'] = __conversion_core(state_dict_base['b'])
-    return state_dict
