@@ -130,8 +130,9 @@ def prepare_sub_folder(output_directory):
 
 def write_loss(iterations, trainer):
     members = [attr for attr in dir(trainer) \
-               if not callable(getattr(trainer, attr)) and not attr.startswith("__") and ('loss' in attr or 'grad' in attr or 'nwd' in attr)]
+               if not callable(getattr(trainer, attr)) and not attr.startswith("_") and ('loss' in attr or 'grad' in attr or 'nwd' in attr)]
     log_dict = {m: getattr(trainer, m) for m in members}
+    log_dict.update(trainer.log_dict)  # additional losses
     wandb.log(log_dict, step=iterations)
 
 

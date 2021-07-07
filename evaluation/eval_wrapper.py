@@ -155,7 +155,7 @@ def eval_lane(net, dataset, data_root, loader, work_dir, griding_num, use_aux, p
             R = TP * 1.0 / (TP + FN)  # Recall
             F = 2 * P * R / (P + R) if (P + R) > 0 else 0  # F1, set to zero to avoid division by zero
             dist_print("F1 score", F)
-            log_dict = {"F1": F, "Precision": P, "Recall": R}
+            log_dict = {f"{partition}_f1": F, f"{partition}_precision": P, f"{partition}_recall": R}
             eval_metric = F
         synchronize()
 
@@ -169,7 +169,7 @@ def eval_lane(net, dataset, data_root, loader, work_dir, griding_num, use_aux, p
                                             os.path.join(data_root, f'{partition}_label.json'))
             res = json.loads(res)
             eval_metric = res[0]['value']
-            log_dict = {"Accuracy": eval_metric}
+            log_dict = {f"{partition}_accuracy": eval_metric}
             dist_print("Accuracy %.5f" % eval_metric)
         synchronize()
     else:

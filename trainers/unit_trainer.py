@@ -6,8 +6,9 @@ TODO: Figure out license
 """
 from networks.unit import MsImageDis, VAEGen
 from networks.lane_detector import UltraFastLaneDetector
-from utils import weights_init, get_model_list, vgg_preprocess, load_vgg16, get_scheduler
+from utils import weights_init, vgg_preprocess, load_vgg16, get_scheduler
 from lane_losses import UltraFastLaneDetectionLoss
+from lane_metrics import get_metric_dict, update_metrics, reset_metrics
 import torch
 import torch.nn as nn
 import os
@@ -52,7 +53,13 @@ class UNIT_Trainer(nn.Module):
             for param in self.vgg.parameters():
                 param.requires_grad = False
 
-    def recon_criterion(self, input, target):
+        # Logging additional losses and metrics
+        self.log_dict = {}  # updated per log iter
+        self.metric_log_dict = {}  # updated per epoch
+        self.metric_dict = get_metric_dict(hyperparameters['lane'])
+        self.metric_dict_cyc = get_metric_dict(hyperparameters['lane'])
+
+    def _recon_criterion(self, input, target):
         return torch.mean(torch.abs(input - target))
 
     def forward(self, x_a, x_b):
@@ -72,7 +79,7 @@ class UNIT_Trainer(nn.Module):
         self.train()
         return preds
 
-    def __compute_kl(self, mu):
+    def _compute_kl(self, mu):
         # def _compute_kl(self, mu, sd):
         # mu_2 = torch.pow(mu, 2)
         # sd_2 = torch.pow(sd, 2)
@@ -81,6 +88,29 @@ class UNIT_Trainer(nn.Module):
         mu_2 = torch.pow(mu, 2)
         encoding_loss = torch.mean(mu_2)
         return encoding_loss
+
+    def reset_metrics(self):
+        reset_metrics(self.metric_dict)
+        reset_metrics(self.metric_dict_cyc)
+
+    def _log_lane_metrics(self, metric_dict, preds, labels, postfix):
+        if self.lane_model.use_aux:
+            cls_label, seg_label = labels
+            cls_out, seg_out = preds
+            results = {'cls_out': torch.argmax(cls_out, dim=1), 'cls_label': cls_label,
+                       'seg_out': torch.argmax(seg_out, dim=1), 'seg_label': seg_label}
+        else:
+            cls_label = labels
+            cls_out = preds
+            results = {'cls_out': torch.argmax(cls_out, dim=1), 'cls_label': cls_label}
+
+        update_metrics(metric_dict, results)
+        for me_name, me_op in zip(metric_dict['name'], metric_dict['op']):
+            self.metric_log_dict[f"lane_metric_{me_name}_{postfix}"] = me_op.get()
+
+    def _log_lane_losses(self, postfix):
+        for k, v in self.lane_loss.current_losses.items():
+            self.log_dict[f"lane_{k}_{postfix}"] = v
 
     def gen_update(self, x_a, x_b, y_a, hyperparameters):
         # assume x_a from simulation data with labels y_a and x_b from real data
@@ -108,23 +138,27 @@ class UNIT_Trainer(nn.Module):
         x_bab = self.gen_b.decode(h_b_recon + n_b_recon) if hyperparameters['recon_x_cyc_w'] > 0 else None
 
         # lane detection loss
-        self.lane_loss_x_a = self.lane_loss(pred_a, y_a)
-        self.lane_loss_cyc_x_a = self.lane_loss(pred_a_cyc, y_a)
+        self.total_lane_loss_x_a = self.lane_loss(pred_a, y_a)
+        self._log_lane_losses("x_a")
+        self._log_lane_metrics(self.metric_dict, pred_a, y_a, "x_a")
+        self.total_lane_loss_cyc_x_a = self.lane_loss(pred_a_cyc, y_a)
+        self._log_lane_losses("cyc_x_a")
+        self._log_lane_metrics(self.metric_dict_cyc, pred_a_cyc, y_a, "cyc_x_a")
         # reconstruction loss
-        self.loss_gen_recon_x_a = self.recon_criterion(x_a_recon, x_a)
-        self.loss_gen_recon_x_b = self.recon_criterion(x_b_recon, x_b)
-        self.loss_gen_recon_kl_a = self.__compute_kl(h_a)
-        self.loss_gen_recon_kl_b = self.__compute_kl(h_b)
-        self.loss_gen_cyc_x_a = self.recon_criterion(x_aba, x_a)
-        self.loss_gen_cyc_x_b = self.recon_criterion(x_bab, x_b)
-        self.loss_gen_recon_kl_cyc_aba = self.__compute_kl(h_a_recon)
-        self.loss_gen_recon_kl_cyc_bab = self.__compute_kl(h_b_recon)
+        self.loss_gen_recon_x_a = self._recon_criterion(x_a_recon, x_a)
+        self.loss_gen_recon_x_b = self._recon_criterion(x_b_recon, x_b)
+        self.loss_gen_recon_kl_a = self._compute_kl(h_a)
+        self.loss_gen_recon_kl_b = self._compute_kl(h_b)
+        self.loss_gen_cyc_x_a = self._recon_criterion(x_aba, x_a)
+        self.loss_gen_cyc_x_b = self._recon_criterion(x_bab, x_b)
+        self.loss_gen_recon_kl_cyc_aba = self._compute_kl(h_a_recon)
+        self.loss_gen_recon_kl_cyc_bab = self._compute_kl(h_b_recon)
         # GAN loss
         self.loss_gen_adv_a = self.dis_a.calc_gen_loss(x_ba)
         self.loss_gen_adv_b = self.dis_b.calc_gen_loss(x_ab)
         # domain-invariant perceptual loss
-        self.loss_gen_vgg_a = self.compute_vgg_loss(self.vgg, x_ba, x_b) if hyperparameters['vgg_w'] > 0 else 0
-        self.loss_gen_vgg_b = self.compute_vgg_loss(self.vgg, x_ab, x_a) if hyperparameters['vgg_w'] > 0 else 0
+        self.loss_gen_vgg_a = self._compute_vgg_loss(self.vgg, x_ba, x_b) if hyperparameters['vgg_w'] > 0 else 0
+        self.loss_gen_vgg_b = self._compute_vgg_loss(self.vgg, x_ab, x_a) if hyperparameters['vgg_w'] > 0 else 0
         # total loss
         self.loss_gen_total = hyperparameters['gan_w'] * self.loss_gen_adv_a + \
                               hyperparameters['gan_w'] * self.loss_gen_adv_b + \
@@ -138,12 +172,12 @@ class UNIT_Trainer(nn.Module):
                               hyperparameters['recon_kl_cyc_w'] * self.loss_gen_recon_kl_cyc_bab + \
                               hyperparameters['vgg_w'] * self.loss_gen_vgg_a + \
                               hyperparameters['vgg_w'] * self.loss_gen_vgg_b + \
-                              hyperparameters['lane_w'] * self.lane_loss_x_a + \
-                              hyperparameters['lane_cyc_w'] * self.lane_loss_cyc_x_a
+                              hyperparameters['lane_w'] * self.total_lane_loss_x_a + \
+                              hyperparameters['lane_cyc_w'] * self.total_lane_loss_cyc_x_a
         self.loss_gen_total.backward()
         self.gen_opt.step()
 
-    def compute_vgg_loss(self, vgg, img, target):
+    def _compute_vgg_loss(self, vgg, img, target):
         img_vgg = vgg_preprocess(img)
         target_vgg = vgg_preprocess(target)
         img_fea = vgg(img_vgg)

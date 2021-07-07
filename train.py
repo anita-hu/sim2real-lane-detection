@@ -107,11 +107,22 @@ for epoch in range(start_epoch, config['max_epoch']):
         trainer.gen_update(images_a, images_b, label_a, config)
         torch.cuda.synchronize()
 
-        if (iterations + 1) % config['loss_log_iter'] == 0:
+        if (iterations + 1) % config['log_iter'] == 0:
             write_loss(iterations + 1, trainer)
+
+            if trainer.dis_scheduler is not None:
+                wandb.log({"dis_lr": trainer.dis_scheduler.get_last_lr()[0]}, step=(iterations + 1))
+            if trainer.gen_scheduler is not None:
+                wandb.log({"gen_lr": trainer.gen_scheduler.get_last_lr()[0]}, step=(iterations + 1))
 
         trainer.update_learning_rate()
         iterations += 1
+
+    # Write train metrics
+    log_dict = trainer.metric_log_dict
+    log_dict["epoch"] = epoch + 1
+    wandb.log(log_dict, step=iterations)
+    trainer.reset_metrics()
 
     # Write images
     if (epoch + 1) % config['image_save_epoch'] == 0:
