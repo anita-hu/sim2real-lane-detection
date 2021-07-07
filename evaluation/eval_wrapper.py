@@ -133,6 +133,7 @@ def combine_tusimple_test(work_dir, exp_name):
 def eval_lane(net, dataset, data_root, loader, work_dir, griding_num, use_aux, partition="test"):
     net.eval()
     eval_metric = None
+    log_dict = None
     assert partition in ["test", "val"]
     if dataset == 'CULane':
         run_test(net, loader, 'culane_eval_tmp', work_dir, griding_num, use_aux)
@@ -154,6 +155,7 @@ def eval_lane(net, dataset, data_root, loader, work_dir, griding_num, use_aux, p
             R = TP * 1.0 / (TP + FN)  # Recall
             F = 2 * P * R / (P + R) if (P + R) > 0 else 0  # F1, set to zero to avoid division by zero
             dist_print("F1 score", F)
+            log_dict = {f"{partition}_f1": F, f"{partition}_precision": P, f"{partition}_recall": R}
             eval_metric = F
         synchronize()
 
@@ -166,13 +168,14 @@ def eval_lane(net, dataset, data_root, loader, work_dir, griding_num, use_aux, p
             res = LaneEval.bench_one_submit(os.path.join(work_dir, exp_name + '.txt'),
                                             os.path.join(data_root, f'{partition}_label.json'))
             res = json.loads(res)
-            eval_metric = res[0]['value']  # Accuracy
+            eval_metric = res[0]['value']
+            log_dict = {f"{partition}_accuracy": eval_metric}
             dist_print("Accuracy %.5f" % eval_metric)
         synchronize()
     else:
         raise NotImplementedError("Only support CULane|TuSimple")
 
-    return eval_metric
+    return log_dict, eval_metric
 
 
 def read_helper(path):

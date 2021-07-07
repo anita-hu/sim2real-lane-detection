@@ -15,8 +15,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
          zip \
          unzip \
          g++
-RUN pip install tensorboard
 RUN pip install opencv-python
+RUN pip install wandb
 
 # Install OpenCV C++ for evaluation
 RUN wget -O opencv.zip https://github.com/opencv/opencv/archive/master.zip && unzip opencv.zip

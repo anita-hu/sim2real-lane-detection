@@ -3,6 +3,9 @@ datasets
 logs
 outputs
 
+# weights and biases logging
+wandb/
+
 # PyCharm
 .idea
 

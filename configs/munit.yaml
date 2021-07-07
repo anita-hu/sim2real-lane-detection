@@ -2,8 +2,9 @@
 # Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
 
 # logger options
-image_save_epoch: 1          # How often do you want to save output images during training
-display_size: 4              # How many images do you want to display each time
+log_iter: 500                 # How often do you want to log loss and learning rate values during training
+image_save_epoch: 1           # How often do you want to save output images during training
+display_size: 4               # How many images do you want to display each time
 
 # optimization options
 max_epoch: 100                # maximum number of training epochs
@@ -24,6 +25,7 @@ recon_x_cyc_w: 10             # weight of explicit style augmented cycle consist
 vgg_w: 1                      # weight of domain-invariant perceptual loss
 lane_w: 10                    # weight of lane detection loss
 lane_cyc_w: 10                # weight of cyclic lane detection loss
+random_seed: 42
 
 # model options
 trainer: MUNIT                 # trainer [UNIT/MUNIT]
@@ -58,8 +60,9 @@ input_dim_b: 3                # number of image channels [1/3]
 input_height: 180             # resized image height
 input_width: 500              # resized image width
 
-datasetA: WATO  # one of CULane, TuSimple, WATO
+# By convention, dataset A will be simulation, labelled data, while dataset B will be real-world without labels
+datasetA: WATO
 dataA_root: /datasets/WATO     # dataset folder location
 
-datasetB: TuSimple  # one of CULane, TuSimple, WATO
+datasetB: TuSimple  # one of CULane, TuSimple
 dataB_root: /datasets/TuSimple     # dataset folder location

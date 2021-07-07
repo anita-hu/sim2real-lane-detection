@@ -63,6 +63,8 @@ class UltraFastLaneDetectionLoss(nn.Module):
         super(UltraFastLaneDetectionLoss, self).__init__()
         self.use_aux = hyperparameters["use_aux"]
         self.loss_weights = {
+            "cls_loss": 1.0,
+            "seg_loss": 1.0,
             "sim_loss": hyperparameters["sim_loss_w"],
             "shp_loss": hyperparameters["shp_loss_w"],
         }
@@ -72,20 +74,26 @@ class UltraFastLaneDetectionLoss(nn.Module):
             "sim_loss": ParsingRelationLoss(),
             "shp_loss": ParsingRelationDis(),
         }
+        self.current_losses = None  # for wandb logging
 
     def forward(self, preds, labels):
-        lane_loss = 0
         if self.use_aux:
             cls_out, seg_out = preds
             cls_label, seg_label = labels
-            lane_loss += self.lane_losses["seg_loss"](seg_out, seg_label)
         else:
             cls_out = preds
             cls_label = labels
 
-        lane_loss += self.lane_losses["cls_loss"](cls_out, cls_label)
-        lane_loss += self.lane_losses["sim_loss"](cls_out) * self.loss_weights["sim_loss"]
-        lane_loss += self.lane_losses["shp_loss"](cls_out) * self.loss_weights["shp_loss"]
+        self.current_losses = {
+            "cls_loss": self.lane_losses["cls_loss"](cls_out, cls_label),
+            "seg_loss": self.lane_losses["seg_loss"](seg_out, seg_label) if self.use_aux else 0,
+            "sim_loss": self.lane_losses["sim_loss"](cls_out),
+            "shp_loss": self.lane_losses["shp_loss"](cls_out),
+        }
+
+        lane_loss = 0
+        for loss_name, loss_value in self.current_losses.items():
+            lane_loss += loss_value * self.loss_weights[loss_name]
 
         return lane_loss
 
