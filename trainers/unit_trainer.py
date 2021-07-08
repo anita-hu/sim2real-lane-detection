@@ -11,6 +11,7 @@ from lane_losses import UltraFastLaneDetectionLoss
 from lane_metrics import get_metric_dict, update_metrics, reset_metrics
 import torch
 import torch.nn as nn
+from torch.cuda import amp
 import os
 
 
@@ -40,6 +41,10 @@ class UNIT_Trainer(nn.Module):
                                         lr=lr, betas=(beta1, beta2), weight_decay=hyperparameters['weight_decay'])
         self.dis_scheduler = get_scheduler(self.dis_opt, hyperparameters)
         self.gen_scheduler = get_scheduler(self.gen_opt, hyperparameters)
+
+        # Mixed precision training
+        self.dis_scaler = amp.GradScaler() if hyperparameters["mixed_precision"] else None
+        self.gen_scaler = amp.GradScaler() if hyperparameters["mixed_precision"] else None
 
         # Network weight initialization
         self.apply(weights_init(hyperparameters['init']))
@@ -115,67 +120,74 @@ class UNIT_Trainer(nn.Module):
     def gen_update(self, x_a, x_b, y_a, hyperparameters):
         # assume x_a from simulation data with labels y_a and x_b from real data
         self.gen_opt.zero_grad()
-        # encode
-        h_a, n_a = self.gen_a.encode(x_a)
-        h_b, n_b = self.gen_b.encode(x_b)
-        # lane detection (within domain)
-        fea_a = self.gen_a.enc.stored_features
-        pred_a = self.lane_model(fea_a)
-        # decode (within domain)
-        x_a_recon = self.gen_a.decode(h_a + n_a)
-        x_b_recon = self.gen_b.decode(h_b + n_b)
-        # decode (cross domain)
-        x_ba = self.gen_a.decode(h_b + n_b)
-        x_ab = self.gen_b.decode(h_a + n_a)
-        # encode again
-        h_b_recon, n_b_recon = self.gen_a.encode(x_ba)
-        h_a_recon, n_a_recon = self.gen_b.encode(x_ab)
-        # lane detection (cyclic)
-        fea_a_recon = self.gen_a.enc.stored_features
-        pred_a_cyc = self.lane_model(fea_a_recon)
-        # decode again (if needed)
-        x_aba = self.gen_a.decode(h_a_recon + n_a_recon) if hyperparameters['recon_x_cyc_w'] > 0 else None
-        x_bab = self.gen_b.decode(h_b_recon + n_b_recon) if hyperparameters['recon_x_cyc_w'] > 0 else None
+        with amp.autocast(enabled=hyperparameters["mixed_precision"]):
+            # encode
+            h_a, n_a = self.gen_a.encode(x_a)
+            h_b, n_b = self.gen_b.encode(x_b)
+            # lane detection (within domain)
+            fea_a = self.gen_a.enc.stored_features
+            pred_a = self.lane_model(fea_a)
+            # decode (within domain)
+            x_a_recon = self.gen_a.decode(h_a + n_a)
+            x_b_recon = self.gen_b.decode(h_b + n_b)
+            # decode (cross domain)
+            x_ba = self.gen_a.decode(h_b + n_b)
+            x_ab = self.gen_b.decode(h_a + n_a)
+            # encode again
+            h_b_recon, n_b_recon = self.gen_a.encode(x_ba)
+            h_a_recon, n_a_recon = self.gen_b.encode(x_ab)
+            # lane detection (cyclic)
+            fea_a_recon = self.gen_a.enc.stored_features
+            pred_a_cyc = self.lane_model(fea_a_recon)
+            # decode again (if needed)
+            x_aba = self.gen_a.decode(h_a_recon + n_a_recon) if hyperparameters['recon_x_cyc_w'] > 0 else None
+            x_bab = self.gen_b.decode(h_b_recon + n_b_recon) if hyperparameters['recon_x_cyc_w'] > 0 else None
 
-        # lane detection loss
-        self.total_lane_loss_x_a = self.lane_loss(pred_a, y_a)
-        self._log_lane_losses("x_a")
-        self._log_lane_metrics(self.metric_dict, pred_a, y_a, "x_a")
-        self.total_lane_loss_cyc_x_a = self.lane_loss(pred_a_cyc, y_a)
-        self._log_lane_losses("cyc_x_a")
-        self._log_lane_metrics(self.metric_dict_cyc, pred_a_cyc, y_a, "cyc_x_a")
-        # reconstruction loss
-        self.loss_gen_recon_x_a = self._recon_criterion(x_a_recon, x_a)
-        self.loss_gen_recon_x_b = self._recon_criterion(x_b_recon, x_b)
-        self.loss_gen_recon_kl_a = self._compute_kl(h_a)
-        self.loss_gen_recon_kl_b = self._compute_kl(h_b)
-        self.loss_gen_cyc_x_a = self._recon_criterion(x_aba, x_a)
-        self.loss_gen_cyc_x_b = self._recon_criterion(x_bab, x_b)
-        self.loss_gen_recon_kl_cyc_aba = self._compute_kl(h_a_recon)
-        self.loss_gen_recon_kl_cyc_bab = self._compute_kl(h_b_recon)
-        # GAN loss
-        self.loss_gen_adv_a = self.dis_a.calc_gen_loss(x_ba)
-        self.loss_gen_adv_b = self.dis_b.calc_gen_loss(x_ab)
-        # domain-invariant perceptual loss
-        self.loss_gen_vgg_a = self._compute_vgg_loss(self.vgg, x_ba, x_b) if hyperparameters['vgg_w'] > 0 else 0
-        self.loss_gen_vgg_b = self._compute_vgg_loss(self.vgg, x_ab, x_a) if hyperparameters['vgg_w'] > 0 else 0
-        # total loss
-        self.loss_gen_total = hyperparameters['gan_w'] * self.loss_gen_adv_a + \
-                              hyperparameters['gan_w'] * self.loss_gen_adv_b + \
-                              hyperparameters['recon_x_w'] * self.loss_gen_recon_x_a + \
-                              hyperparameters['recon_kl_w'] * self.loss_gen_recon_kl_a + \
-                              hyperparameters['recon_x_w'] * self.loss_gen_recon_x_b + \
-                              hyperparameters['recon_kl_w'] * self.loss_gen_recon_kl_b + \
-                              hyperparameters['recon_x_cyc_w'] * self.loss_gen_cyc_x_a + \
-                              hyperparameters['recon_kl_cyc_w'] * self.loss_gen_recon_kl_cyc_aba + \
-                              hyperparameters['recon_x_cyc_w'] * self.loss_gen_cyc_x_b + \
-                              hyperparameters['recon_kl_cyc_w'] * self.loss_gen_recon_kl_cyc_bab + \
-                              hyperparameters['vgg_w'] * self.loss_gen_vgg_a + \
-                              hyperparameters['vgg_w'] * self.loss_gen_vgg_b + \
-                              hyperparameters['lane_w'] * self.total_lane_loss_x_a + \
-                              hyperparameters['lane_cyc_w'] * self.total_lane_loss_cyc_x_a
-        self.loss_gen_total.backward()
-        self.gen_opt.step()
+            # lane detection loss
+            self.total_lane_loss_x_a = self.lane_loss(pred_a, y_a)
+            self._log_lane_losses("x_a")
+            self._log_lane_metrics(self.metric_dict, pred_a, y_a, "x_a")
+            self.total_lane_loss_cyc_x_a = self.lane_loss(pred_a_cyc, y_a)
+            self._log_lane_losses("cyc_x_a")
+            self._log_lane_metrics(self.metric_dict_cyc, pred_a_cyc, y_a, "cyc_x_a")
+            # reconstruction loss
+            self.loss_gen_recon_x_a = self._recon_criterion(x_a_recon, x_a)
+            self.loss_gen_recon_x_b = self._recon_criterion(x_b_recon, x_b)
+            self.loss_gen_recon_kl_a = self._compute_kl(h_a)
+            self.loss_gen_recon_kl_b = self._compute_kl(h_b)
+            self.loss_gen_cyc_x_a = self._recon_criterion(x_aba, x_a)
+            self.loss_gen_cyc_x_b = self._recon_criterion(x_bab, x_b)
+            self.loss_gen_recon_kl_cyc_aba = self._compute_kl(h_a_recon)
+            self.loss_gen_recon_kl_cyc_bab = self._compute_kl(h_b_recon)
+            # GAN loss
+            self.loss_gen_adv_a = self.dis_a.calc_gen_loss(x_ba)
+            self.loss_gen_adv_b = self.dis_b.calc_gen_loss(x_ab)
+            # domain-invariant perceptual loss
+            self.loss_gen_vgg_a = self._compute_vgg_loss(self.vgg, x_ba, x_b) if hyperparameters['vgg_w'] > 0 else 0
+            self.loss_gen_vgg_b = self._compute_vgg_loss(self.vgg, x_ab, x_a) if hyperparameters['vgg_w'] > 0 else 0
+            # total loss
+            self.loss_gen_total = hyperparameters['gan_w'] * self.loss_gen_adv_a + \
+                                  hyperparameters['gan_w'] * self.loss_gen_adv_b + \
+                                  hyperparameters['recon_x_w'] * self.loss_gen_recon_x_a + \
+                                  hyperparameters['recon_kl_w'] * self.loss_gen_recon_kl_a + \
+                                  hyperparameters['recon_x_w'] * self.loss_gen_recon_x_b + \
+                                  hyperparameters['recon_kl_w'] * self.loss_gen_recon_kl_b + \
+                                  hyperparameters['recon_x_cyc_w'] * self.loss_gen_cyc_x_a + \
+                                  hyperparameters['recon_kl_cyc_w'] * self.loss_gen_recon_kl_cyc_aba + \
+                                  hyperparameters['recon_x_cyc_w'] * self.loss_gen_cyc_x_b + \
+                                  hyperparameters['recon_kl_cyc_w'] * self.loss_gen_recon_kl_cyc_bab + \
+                                  hyperparameters['vgg_w'] * self.loss_gen_vgg_a + \
+                                  hyperparameters['vgg_w'] * self.loss_gen_vgg_b + \
+                                  hyperparameters['lane_w'] * self.total_lane_loss_x_a + \
+                                  hyperparameters['lane_cyc_w'] * self.total_lane_loss_cyc_x_a
+
+        if hyperparameters["mixed_precision"]:
+            self.gen_scaler.scale(self.loss_gen_total).backward()
+            self.gen_scaler.step(self.gen_opt)
+            self.gen_scaler.update()
+        else:
+            self.loss_gen_total.backward()
+            self.gen_opt.step()
 
     def _compute_vgg_loss(self, vgg, img, target):
         img_vgg = vgg_preprocess(img)
@@ -202,18 +214,25 @@ class UNIT_Trainer(nn.Module):
 
     def dis_update(self, x_a, x_b, hyperparameters):
         self.dis_opt.zero_grad()
-        # encode
-        h_a, n_a = self.gen_a.encode(x_a)
-        h_b, n_b = self.gen_b.encode(x_b)
-        # decode (cross domain)
-        x_ba = self.gen_a.decode(h_b + n_b)
-        x_ab = self.gen_b.decode(h_a + n_a)
-        # D loss
-        self.loss_dis_a = self.dis_a.calc_dis_loss(x_ba.detach(), x_a)
-        self.loss_dis_b = self.dis_b.calc_dis_loss(x_ab.detach(), x_b)
-        self.loss_dis_total = hyperparameters['gan_w'] * self.loss_dis_a + hyperparameters['gan_w'] * self.loss_dis_b
-        self.loss_dis_total.backward()
-        self.dis_opt.step()
+        with amp.autocast(enabled=hyperparameters["mixed_precision"]):
+            # encode
+            h_a, n_a = self.gen_a.encode(x_a)
+            h_b, n_b = self.gen_b.encode(x_b)
+            # decode (cross domain)
+            x_ba = self.gen_a.decode(h_b + n_b)
+            x_ab = self.gen_b.decode(h_a + n_a)
+            # D loss
+            self.loss_dis_a = self.dis_a.calc_dis_loss(x_ba.detach(), x_a)
+            self.loss_dis_b = self.dis_b.calc_dis_loss(x_ab.detach(), x_b)
+            self.loss_dis_total = hyperparameters['gan_w'] * self.loss_dis_a + hyperparameters['gan_w'] * self.loss_dis_b
+
+        if hyperparameters["mixed_precision"]:
+            self.dis_scaler.scale(self.loss_dis_total).backward()
+            self.dis_scaler.step(self.dis_opt)
+            self.dis_scaler.update()
+        else:
+            self.loss_dis_total.backward()
+            self.dis_opt.step()
 
     def update_learning_rate(self):
         if self.dis_scheduler is not None:

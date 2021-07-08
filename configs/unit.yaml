@@ -8,7 +8,7 @@ display_size: 4               # How many images do you want to display each time
 
 # optimization options
 max_epoch: 100                # maximum number of training epochs
-batch_size: 1                 # batch size
+batch_size: 2                 # batch size
 weight_decay: 0.0001          # weight decay
 beta1: 0.5                    # Adam parameter
 beta2: 0.999                  # Adam parameter
@@ -26,6 +26,7 @@ recon_kl_cyc_w: 0.01          # weight of KL loss for cycle consistency
 vgg_w: 1                      # weight of domain-invariant perceptual loss
 lane_w: 10                    # weight of lane detection loss
 lane_cyc_w: 10                # weight of cyclic lane detection loss
+mixed_precision: True         # use automatic mixed precision training
 random_seed: 42
 
 # model options
@@ -61,7 +62,7 @@ input_width: 500              # resized image width
 
 # By convention, dataset A will be simulation, labelled data, while dataset B will be real-world without labels
 datasetA: WATO
-dataA_root: /datasets/WATO     # dataset folder location
+dataA_root: /datasets/WATO_TuSimple     # dataset folder location
 
 datasetB: TuSimple  # one of CULane, TuSimple
 dataB_root: /datasets/TuSimple     # dataset folder location
