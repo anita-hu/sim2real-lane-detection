@@ -5,6 +5,7 @@ Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses
 from torch import nn
 from torch.autograd import Variable
 import torch
+from torch.cuda import amp
 import torch.nn.functional as F
 try:
     from itertools import izip as zip
@@ -123,8 +124,9 @@ class AdaINGen(nn.Module):
 
     def decode(self, content, style):
         # decode content and style codes to an image
-        adain_params = self.mlp(style)
-        self.assign_adain_params(adain_params, self.dec)
+        with amp.autocast(enabled=False):
+            adain_params = self.mlp(style.float())
+            self.assign_adain_params(adain_params, self.dec)
         images = self.dec(content)
         return images
 
