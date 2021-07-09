@@ -6,7 +6,7 @@ import os
 import sys
 import torch
 from utils import get_config
-from trainers import MUNIT_Trainer, UNIT_Trainer
+from trainers import MUNIT_Trainer, UNIT_Trainer, Baseline_Trainer
 from data.dataloader import get_test_loader
 from evaluation.eval_wrapper import eval_lane
 
@@ -35,12 +35,17 @@ if config['trainer'] == 'MUNIT':
     trainer = MUNIT_Trainer(config)
 elif config['trainer'] == 'UNIT':
     trainer = UNIT_Trainer(config)
+elif config['trainer'] == 'Baseline':
+    trainer = Baseline_Trainer(config)
 else:
-    sys.exit("Only support MUNIT|UNIT")
+    sys.exit("Only support MUNIT|UNIT|Baseline")
 
 state_dict = torch.load(opts.checkpoint)
 # assume gen_a is for simulation data and gen_b is for real data
-trainer.gen_b.load_state_dict(state_dict['b'])
+if config['trainer'] == 'Baseline':
+    trainer.backbone.load_state_dict(state_dict['b'])
+else:
+    trainer.gen_b.load_state_dict(state_dict['b'])
 trainer.lane_model.load_state_dict(state_dict['lane'], strict=False)  # don't load aux
 
 trainer.cuda()

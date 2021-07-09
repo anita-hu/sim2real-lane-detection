@@ -14,7 +14,7 @@ beta1: 0.5                    # Adam parameter
 beta2: 0.999                  # Adam parameter
 init: kaiming                 # initialization [gaussian/kaiming/xavier/orthogonal]
 lr: 0.0001                    # initial learning rate
-lr_policy: step               # learning rate scheduler
+lr_policy: step               # learning rate scheduler [constant/step/cos]
 step_size: 100000             # how often to decay learning rate
 gamma: 0.5                    # how much to decay learning rate
 gan_w: 1                      # weight of adversarial loss
@@ -29,7 +29,7 @@ mixed_precision: True         # use automatic mixed precision training
 random_seed: 42
 
 # model options
-trainer: MUNIT                 # trainer [UNIT/MUNIT]
+trainer: MUNIT                # trainer [UNIT/MUNIT]
 gen:
   dim: 64                     # number of filters in the bottommost layer
   mlp_dim: 256                # number of filters in MLP

@@ -21,8 +21,56 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import torch
 import numpy as np
+
+import torch
+import torchvision
+import torch.nn.modules
+
+
+class Resnet(torch.nn.Module):
+    def __init__(self, layers, pretrained=False):
+        super(Resnet, self).__init__()
+        if layers == '18':
+            model = torchvision.models.resnet18(pretrained=pretrained)
+        elif layers == '34':
+            model = torchvision.models.resnet34(pretrained=pretrained)
+        elif layers == '50':
+            model = torchvision.models.resnet50(pretrained=pretrained)
+        elif layers == '101':
+            model = torchvision.models.resnet101(pretrained=pretrained)
+        elif layers == '152':
+            model = torchvision.models.resnet152(pretrained=pretrained)
+        elif layers == '50next':
+            model = torchvision.models.resnext50_32x4d(pretrained=pretrained)
+        elif layers == '101next':
+            model = torchvision.models.resnext101_32x8d(pretrained=pretrained)
+        elif layers == '50wide':
+            model = torchvision.models.wide_resnet50_2(pretrained=pretrained)
+        elif layers == '101wide':
+            model = torchvision.models.wide_resnet101_2(pretrained=pretrained)
+        else:
+            raise NotImplementedError
+
+        self.conv1 = model.conv1
+        self.bn1 = model.bn1
+        self.relu = model.relu
+        self.maxpool = model.maxpool
+        self.layer1 = model.layer1
+        self.layer2 = model.layer2
+        self.layer3 = model.layer3
+        self.layer4 = model.layer4
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+        x = self.layer1(x)
+        x2 = self.layer2(x)
+        x3 = self.layer3(x2)
+        x4 = self.layer4(x3)
+        return x2, x3, x4
 
 
 class ConvBnRelu(torch.nn.Module):
@@ -41,7 +89,7 @@ class ConvBnRelu(torch.nn.Module):
 
 
 class UltraFastLaneDetector(torch.nn.Module):
-    def __init__(self, hyperparams, feature_dims=None, size=(288, 800)):
+    def __init__(self, hyperparams, feature_dims=None, size=(288, 800), baseline=False):
         super(UltraFastLaneDetector, self).__init__()
 
         num_gridding = hyperparams["griding_num"]+1
@@ -50,6 +98,7 @@ class UltraFastLaneDetector(torch.nn.Module):
         self.cls_dim = (num_gridding, row_anchors, num_lanes)
         self.use_aux = hyperparams["use_aux"]
         self.total_dim = int(np.prod(self.cls_dim))
+        self.baseline = baseline
 
         # input : nchw,
         # output: (w+1) * sample_rows * 4
@@ -82,7 +131,7 @@ class UltraFastLaneDetector(torch.nn.Module):
 
         self.pool = torch.nn.Conv2d(feature_dims[2], 8, 1)
 
-        self.cls_in = int(size[0]/4*size[1]/4*8)
+        self.cls_in = int(size[0]/4*size[1]/4*8) if not baseline else int(size[0]/32*size[1]/32*8)
         self.cls = torch.nn.Sequential(
             torch.nn.Linear(self.cls_in, 2048),
             torch.nn.ReLU(),
@@ -96,7 +145,11 @@ class UltraFastLaneDetector(torch.nn.Module):
         if self.use_aux:
             x2 = self.aux_header2(x2)
             x3 = self.aux_header3(x3)
+            if self.baseline:
+                x3 = torch.nn.functional.interpolate(x3, scale_factor=2, mode='bilinear')
             x4 = self.aux_header4(fea)
+            if self.baseline:
+                x4 = torch.nn.functional.interpolate(x4, scale_factor=4, mode='bilinear')
             aux_seg = torch.cat([x2, x3, x4], dim=1)
             aux_seg = self.aux_combine(aux_seg)
         else:
