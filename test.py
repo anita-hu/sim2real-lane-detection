@@ -42,7 +42,10 @@ else:
 
 state_dict = torch.load(opts.checkpoint)
 # assume gen_a is for simulation data and gen_b is for real data
-trainer.gen_b.load_state_dict(state_dict['b'])
+if config['trainer'] == 'Baseline':
+    trainer.backbone.load_state_dict(state_dict['b'])
+else:
+    trainer.gen_b.load_state_dict(state_dict['b'])
 trainer.lane_model.load_state_dict(state_dict['lane'], strict=False)  # don't load aux
 
 trainer.cuda()
