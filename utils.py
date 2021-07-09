@@ -209,6 +209,9 @@ def get_scheduler(optimizer, hyperparameters, iterations=-1):
     elif hyperparameters['lr_policy'] == 'step':
         scheduler = lr_scheduler.StepLR(optimizer, step_size=hyperparameters['step_size'],
                                         gamma=hyperparameters['gamma'], last_epoch=iterations)
+    elif hyperparameters['lr_policy'] == 'cos':
+        total_iters = hyperparameters['max_epoch'] * hyperparameters['iter_per_epoch']
+        scheduler = lr_scheduler.CosineAnnealingLR(optimizer, total_iters, eta_min=0)
     else:
         return NotImplementedError('learning rate policy [%s] is not implemented', hyperparameters['lr_policy'])
     return scheduler
