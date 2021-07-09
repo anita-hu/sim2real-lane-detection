@@ -5,7 +5,7 @@ Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses
 from utils import prepare_sub_folder, write_loss, get_config, write_2images, Timer
 import argparse
 from tqdm import tqdm
-from trainers import MUNIT_Trainer, UNIT_Trainer
+from trainers import MUNIT_Trainer, UNIT_Trainer, Baseline_Trainer
 import torch
 from data.dataloader import get_train_loader, get_test_loader
 from evaluation.eval_wrapper import eval_lane
@@ -20,7 +20,7 @@ import shutil
 import wandb
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--config', type=str, default='configs/edges2handbags_folder.yaml', help='Path to the config file.')
+parser.add_argument('--config', type=str, default='configs/unit.yaml', help='Path to the config file.')
 parser.add_argument('--output_path', type=str, default='.', help="outputs path")
 parser.add_argument("--resume", action="store_true")
 parser.add_argument('--entity', type=str, default='watonomous-perception-research',
@@ -30,7 +30,7 @@ opts = parser.parse_args()
 
 # Load experiment setting
 config = get_config(opts.config)
-display_size = config['display_size']
+baseline = config['trainer'] == 'Baseline'
 config['vgg_model_path'] = opts.output_path
 config["resume"] = opts.resume
 
@@ -47,7 +47,7 @@ print(f"Loading {config['datasetA']} as dataset A. (labelled, simulated)")
 train_loader_a = get_train_loader(config["batch_size"], config["dataA_root"],
                                   griding_num=config["lane"]["griding_num"], dataset=config["datasetA"],
                                   use_aux=config["lane"]["use_aux"], distributed=False,
-                                  num_lanes=config["lane"]["num_lanes"],
+                                  num_lanes=config["lane"]["num_lanes"], baseline=baseline,
                                   image_dim=(config["input_height"], config["input_width"]),
                                   return_label=True)
 
@@ -55,7 +55,7 @@ print(f"Loading {config['datasetB']} as dataset B.")
 train_loader_b = get_train_loader(config["batch_size"], config["dataB_root"],
                                   griding_num=config["lane"]["griding_num"], dataset=config["datasetB"],
                                   use_aux=config["lane"]["use_aux"], distributed=False,
-                                  num_lanes=config["lane"]["num_lanes"],
+                                  num_lanes=config["lane"]["num_lanes"], baseline=baseline,
                                   image_dim=(config["input_height"], config["input_width"]))
 
 val_loader_b = get_test_loader(batch_size=config["batch_size"], data_root=config["dataB_root"],
@@ -69,13 +69,17 @@ if config['trainer'] == 'MUNIT':
     trainer = MUNIT_Trainer(config)
 elif config['trainer'] == 'UNIT':
     trainer = UNIT_Trainer(config)
+elif config['trainer'] == 'Baseline':
+    trainer = Baseline_Trainer(config)
 else:
-    sys.exit("Only support MUNIT|UNIT")
+    sys.exit("Only support MUNIT|UNIT|Baseline")
 trainer.cuda()
 
-train_display_images_a = torch.stack([train_loader_a.dataset[i][0] for i in range(display_size)]).cuda()
-train_display_images_b = torch.stack([train_loader_b.dataset[i] for i in range(display_size)]).cuda()
-test_display_images_b = torch.stack([val_loader_b.dataset[i][0] for i in range(display_size)]).cuda()
+if not baseline:
+    display_size = config['display_size']
+    train_display_images_a = torch.stack([train_loader_a.dataset[i][0] for i in range(display_size)]).cuda()
+    train_display_images_b = torch.stack([train_loader_b.dataset[i] for i in range(display_size)]).cuda()
+    test_display_images_b = torch.stack([val_loader_b.dataset[i][0] for i in range(display_size)]).cuda()
 
 # Setup logger and output folders
 model_name = os.path.splitext(os.path.basename(opts.config))[0]
@@ -125,7 +129,7 @@ for epoch in range(start_epoch, config['max_epoch']):
     trainer.reset_metrics()
 
     # Write images
-    if (epoch + 1) % config['image_save_epoch'] == 0:
+    if not baseline and (epoch + 1) % config['image_save_epoch'] == 0:
         with torch.no_grad():
             test_image_outputs = trainer.sample(train_display_images_a, test_display_images_b)
             train_image_outputs = trainer.sample(train_display_images_a, train_display_images_b)
