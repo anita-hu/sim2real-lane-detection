@@ -46,12 +46,14 @@ class MUNIT_Trainer(nn.Module):
                                         lr=lr, betas=(beta1, beta2), weight_decay=hyperparameters['weight_decay'])
         self.gen_opt = torch.optim.Adam([p for p in gen_params if p.requires_grad],
                                         lr=lr, betas=(beta1, beta2), weight_decay=hyperparameters['weight_decay'])
+        self.lane_opt = torch.optim.Adam([p for p in self.lane_model.parameters() if p.requires_grad],
+                                         lr=lr, betas=(beta1, beta2), weight_decay=hyperparameters['weight_decay'])
         self.dis_scheduler = get_scheduler(self.dis_opt, hyperparameters)
         self.gen_scheduler = get_scheduler(self.gen_opt, hyperparameters)
+        self.lane_scheduler = get_scheduler(self.lane_opt, hyperparameters)
 
         # Mixed precision training
-        self.dis_scaler = amp.GradScaler() if hyperparameters["mixed_precision"] else None
-        self.gen_scaler = amp.GradScaler() if hyperparameters["mixed_precision"] else None
+        self.scaler = amp.GradScaler() if hyperparameters["mixed_precision"] else None
 
         # Network weight initialization
         self.apply(weights_init(hyperparameters['init']))
@@ -119,6 +121,7 @@ class MUNIT_Trainer(nn.Module):
     def gen_update(self, x_a, x_b, y_a, hyperparameters):
         # assume x_a from simulation data with labels y_a and x_b from real data
         self.gen_opt.zero_grad()
+        self.lane_opt.zero_grad()
         with amp.autocast(enabled=hyperparameters["mixed_precision"]):
             s_a = Variable(torch.randn(x_a.size(0), self.style_dim, 1, 1).cuda())
             s_b = Variable(torch.randn(x_b.size(0), self.style_dim, 1, 1).cuda())
@@ -183,12 +186,13 @@ class MUNIT_Trainer(nn.Module):
                                   hyperparameters['lane_cyc_w'] * self.total_lane_loss_cyc_x_a
 
         if hyperparameters["mixed_precision"]:
-            self.gen_scaler.scale(self.loss_gen_total).backward()
-            self.gen_scaler.step(self.gen_opt)
-            self.gen_scaler.update()
+            self.scaler.scale(self.loss_gen_total).backward()
+            self.scaler.step(self.gen_opt)
+            self.scaler.step(self.lane_opt)
         else:
             self.loss_gen_total.backward()
             self.gen_opt.step()
+            self.lane_opt.step()
 
     def _compute_vgg_loss(self, vgg, img, target):
         img_vgg = vgg_preprocess(img)
@@ -236,9 +240,8 @@ class MUNIT_Trainer(nn.Module):
             self.loss_dis_total = hyperparameters['gan_w'] * self.loss_dis_a + hyperparameters['gan_w'] * self.loss_dis_b
 
         if hyperparameters["mixed_precision"]:
-            self.dis_scaler.scale(self.loss_dis_total).backward()
-            self.dis_scaler.step(self.dis_opt)
-            self.dis_scaler.update()
+            self.scaler.scale(self.loss_dis_total).backward()
+            self.scaler.step(self.dis_opt)
         else:
             self.loss_dis_total.backward()
             self.dis_opt.step()
@@ -248,6 +251,8 @@ class MUNIT_Trainer(nn.Module):
             self.dis_scheduler.step()
         if self.gen_scheduler is not None:
             self.gen_scheduler.step()
+        if self.lane_scheduler is not None:
+            self.lane_scheduler.step()
 
     def resume(self, checkpoint_dir, hyperparameters):
         # Load generators
@@ -265,9 +270,11 @@ class MUNIT_Trainer(nn.Module):
         state_dict = torch.load(os.path.join(checkpoint_dir, 'optimizer.pt'))
         self.dis_opt.load_state_dict(state_dict['dis'])
         self.gen_opt.load_state_dict(state_dict['gen'])
+        self.lane_opt.load_state_dict(state_dict['lane'])
         # Reinitilize schedulers
         self.dis_scheduler = get_scheduler(self.dis_opt, hyperparameters, epoch)
         self.gen_scheduler = get_scheduler(self.gen_opt, hyperparameters, epoch)
+        self.lane_scheduler = get_scheduler(self.lane_opt, hyperparameters, epoch)
         print('Resume from epoch %d' % epoch)
         return epoch
 
@@ -279,4 +286,5 @@ class MUNIT_Trainer(nn.Module):
         torch.save({'a': self.gen_a.state_dict(), 'b': self.gen_b.state_dict(),
                     'lane': self.lane_model.state_dict(), 'epoch': epoch + 1}, gen_name)
         torch.save({'a': self.dis_a.state_dict(), 'b': self.dis_b.state_dict(), 'epoch': epoch + 1}, dis_name)
-        torch.save({'gen': self.gen_opt.state_dict(), 'dis': self.dis_opt.state_dict(), 'epoch': epoch + 1}, opt_name)
+        torch.save({'gen': self.gen_opt.state_dict(), 'dis': self.dis_opt.state_dict(),
+                    'lane': self.lane_opt.state_dict(), 'epoch': epoch + 1}, opt_name)

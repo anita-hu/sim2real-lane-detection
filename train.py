@@ -109,6 +109,10 @@ for epoch in range(start_epoch, config['max_epoch']):
         # Main training code
         trainer.dis_update(images_a, images_b, config)
         trainer.gen_update(images_a, images_b, label_a, config)
+
+        if config["mixed_precision"]:
+            trainer.scaler.update()
+
         torch.cuda.synchronize()
 
         if (iterations + 1) % config['log_iter'] == 0:
