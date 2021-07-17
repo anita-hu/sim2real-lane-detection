@@ -91,7 +91,6 @@ class Baseline_Trainer(nn.Module):
         if hyperparameters["mixed_precision"]:
             self.scaler.scale(self.total_lane_loss).backward()
             self.scaler.step(self.opt)
-            self.scaler.update()
         else:
             self.total_lane_loss.backward()
             self.opt.step()
