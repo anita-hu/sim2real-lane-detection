@@ -36,6 +36,7 @@ class Baseline_Trainer(nn.Module):
                                     weight_decay=hyperparameters['weight_decay'])
         self.gen_scheduler = get_scheduler(self.opt, hyperparameters)
         self.dis_scheduler = None
+        self.lane_scheduler = None
 
         # Mixed precision training
         self.scaler = amp.GradScaler() if hyperparameters["mixed_precision"] else None

@@ -13,7 +13,6 @@ weight_decay: 0.0001          # weight decay
 beta1: 0.5                    # Adam parameter
 beta2: 0.999                  # Adam parameter
 init: kaiming                 # initialization [gaussian/kaiming/xavier/orthogonal]
-lr: 0.0001                    # initial learning rate
 lr_policy: step               # learning rate scheduler [constant/step/cos]
 step_size: 100000             # how often to decay learning rate
 gamma: 0.5                    # how much to decay learning rate
@@ -32,6 +31,7 @@ random_seed: 42
 # model options
 trainer: UNIT                 # trainer [UNIT/MUNIT]
 gen:
+  lr: 0.0001                  # initial learning rate
   dim: 64                     # number of filters in the bottommost layer
   activ: relu                 # activation function [relu/lrelu/prelu/selu/tanh]
   n_downsample: 2             # number of downsampling layers in content encoder
@@ -39,6 +39,7 @@ gen:
   pad_type: reflect           # padding type [zero/reflect]
   store_last_n: 3             # features from last n layers for auxiliary branch of lane detector
 dis:
+  lr: 0.0001                  # initial learning rate
   dim: 64                     # number of filters in the bottommost layer
   norm: none                  # normalization layer [none/bn/in/ln]
   activ: lrelu                # activation function [relu/lrelu/prelu/selu/tanh]
@@ -47,6 +48,7 @@ dis:
   num_scales: 3               # number of scales
   pad_type: reflect           # padding type [zero/reflect]
 lane:
+  lr: 0.0004                  # initial learning rate
   use_aux: True               # use segmentation loss [True/False]
   griding_num: 100            # number of column samples
   cls_num_per_lane: 56        # number of row anchors [TuSimple/WATO=56, CULane=18]
