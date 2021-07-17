@@ -109,6 +109,10 @@ for epoch in range(start_epoch, config['max_epoch']):
         # Main training code
         trainer.dis_update(images_a, images_b, config)
         trainer.gen_update(images_a, images_b, label_a, config)
+
+        if config["mixed_precision"]:
+            trainer.scaler.update()
+
         torch.cuda.synchronize()
 
         if (iterations + 1) % config['log_iter'] == 0:
@@ -118,6 +122,8 @@ for epoch in range(start_epoch, config['max_epoch']):
                 wandb.log({"dis_lr": trainer.dis_scheduler.get_last_lr()[0]}, step=(iterations + 1))
             if trainer.gen_scheduler is not None:
                 wandb.log({"gen_lr": trainer.gen_scheduler.get_last_lr()[0]}, step=(iterations + 1))
+            if trainer.lane_scheduler is not None:
+                wandb.log({"lane_lr": trainer.lane_scheduler.get_last_lr()[0]}, step=(iterations + 1))
 
         trainer.update_learning_rate()
         iterations += 1
