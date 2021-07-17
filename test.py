@@ -17,7 +17,6 @@ parser.add_argument('--checkpoint', type=str, help="checkpoint of autoencoders a
 parser.add_argument('--seed', type=int, default=10, help="random seed")
 parser.add_argument('--distributed', action='store_true', help="whether use distributed testing")
 parser.add_argument('--local_rank', type=int, default=0)
-parser.add_argument('--output_path', type=str, default='.', help="path for logs, checkpoints, and VGG model weight")
 opts = parser.parse_args()
 
 torch.manual_seed(opts.seed)
@@ -28,8 +27,8 @@ torch.backends.cudnn.benchmark = True
 config = get_config(opts.config)
 
 # Setup model and data loader
-config['vgg_model_path'] = opts.output_path
-config['lane']['use_aux'] = False
+config['vgg_w'] = 0  # do not load vgg model
+config['lane']['use_aux'] = False  # no aux segmentation branch
 if config['trainer'] == 'MUNIT':
     style_dim = config['gen']['style_dim']
     trainer = MUNIT_Trainer(config)
