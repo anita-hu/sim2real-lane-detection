@@ -39,5 +39,6 @@ input_width: 800              # resized image width
 datasetA: WATO
 dataA_root: /datasets/WATO_TuSimple     # dataset folder location
 
+# note, this dataset will be used for the demo
 datasetB: TuSimple  # one of CULane, TuSimple
 dataB_root: /datasets/TuSimple     # dataset folder location
