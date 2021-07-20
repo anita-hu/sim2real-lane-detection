@@ -5,7 +5,7 @@ Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses
 from utils import prepare_sub_folder, write_loss, get_config, write_2images, Timer
 import argparse
 from tqdm import tqdm
-from trainers import MUNIT_Trainer, UNIT_Trainer, Baseline_Trainer
+from trainers import MUNIT_Trainer, UNIT_Trainer, Baseline_Trainer, DRIT_trainer
 import torch
 from data.dataloader import get_train_loader, get_test_loader
 from evaluation.eval_wrapper import eval_lane
@@ -71,8 +71,10 @@ elif config['trainer'] == 'UNIT':
     trainer = UNIT_Trainer(config)
 elif config['trainer'] == 'Baseline':
     trainer = Baseline_Trainer(config)
+elif opts.trainer == "DRIT":
+    trainer = DRIT_trainer(config)
 else:
-    sys.exit("Only support MUNIT|UNIT|Baseline")
+    sys.exit("Only support MUNIT|UNIT|Baseline|DRIT")
 trainer.cuda()
 
 if not baseline:
