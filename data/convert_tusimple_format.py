@@ -113,16 +113,17 @@ def get_tusimple_list(root, label_list):
     return names, line_txt, label_json_all
 
 
-def generate_segmentation_and_train_list(root, line_txt, names, num_val=0):
+def generate_segmentation_and_train_list(root, line_txt, names, image_size=(720, 1280), num_val=0):
     """
     The lane annotations of the Tusimple dataset is not strictly in order, so we need to find out the correct lane order for segmentation.
     We use the same definition as CULane, in which the four lanes from left to right are represented as 1,2,3,4 in segentation label respectively.
     """
-    train_gt_fp = open(os.path.join(root, 'train_gt.txt'), 'w')
+    os.mkdir(os.path.join(root, 'list'))
+    train_gt_fp = open(os.path.join(root, 'list/train_gt.txt'), 'w')
 
     val_idx = []
     if num_val > 0:
-        val_names = open(os.path.join(root, 'val.txt'), 'w')
+        val_names = open(os.path.join(root, 'list/val.txt'), 'w')
         val_idx = np.random.choice(len(line_txt), size=num_val, replace=False).tolist()
 
     for i in tqdm.tqdm(range(len(line_txt))):
@@ -142,7 +143,7 @@ def generate_segmentation_and_train_list(root, line_txt, names, num_val=0):
         k_pos.sort()
 
         label_path = names[i][:-3] + 'png'
-        label = np.zeros((720, 1280), dtype=np.uint8)
+        label = np.zeros(image_size, dtype=np.uint8)
         bin_label = [0, 0, 0, 0]
         if len(k_neg) == 1:  # for only one lane in the left
             which_lane = np.where(ks == k_neg[0])[0][0]
@@ -213,7 +214,8 @@ def pad_tusimple_json(label_json):
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--root', required=True, help='The root of the dataset')
-    parser.add_argument('--dataset', required=True, help='one of "TuSimple", "WATO", specifying which dataset')
+    parser.add_argument('--dataset', required=True, help='One of "TuSimple", "WATO", specifying which dataset')
+    parser.add_argument('--res', default='720x1280', help='Image size for segmentation label (HxW)')
     return parser
 
 
@@ -223,7 +225,8 @@ if __name__ == "__main__":
     if args.dataset == "WATO":
         # wato only has training, we don't need testing for simulation
         names, line_txt = get_wato_list(args.root)
-        generate_segmentation_and_train_list(args.root, line_txt, names)
+        image_size = [int(x) for x in args.res.split('x')]
+        generate_segmentation_and_train_list(args.root, line_txt, names, image_size=image_size)
     else:
         # training set
         names, line_txt, label_json_all = get_tusimple_list(args.root, ['label_data_0601.json',
@@ -241,6 +244,6 @@ if __name__ == "__main__":
         # testing set
         names, line_txt, _ = get_tusimple_list(args.root, ['test_tasks_0627.json'])
         # generate testing set for testing
-        with open(os.path.join(args.root, 'test.txt'), 'w') as fp:
+        with open(os.path.join(args.root, 'list/test.txt'), 'w') as fp:
             for name in names:
                 fp.write(name + '\n')

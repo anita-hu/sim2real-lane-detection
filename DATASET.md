@@ -51,5 +51,9 @@ scripts expect the TuSimple data to already be reformatted.
 
 Similarly the WATO data also needs to be reformatted since it uses the same label format as TuSimple 
 ```
-python data/convert_tusimple_format.py --dataset WATO --root /datasets/WATO
+python data/convert_tusimple_format.py --dataset WATO --root /datasets/WATO_TuSimple
+```
+For image size that is not 720x1280, for example for training with CULane
+```
+python data/convert_tusimple_format.py --dataset WATO --root /datasets/WATO_CULane --res 590x1640
 ```

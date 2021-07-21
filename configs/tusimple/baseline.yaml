@@ -36,8 +36,6 @@ input_height: 288             # resized image height
 input_width: 800              # resized image width
 
 # By convention, dataset A will be simulation, labelled data, while dataset B will be real-world without labels
-datasetA: WATO
-dataA_root: /datasets/WATO_TuSimple     # dataset folder location
-
-datasetB: TuSimple  # one of CULane, TuSimple
-dataB_root: /datasets/TuSimple     # dataset folder location
+dataset: TuSimple                     # real-world dataset [CULane/TuSimple]
+dataA_root: /datasets/WATO_TuSimple   # dataset folder location for simulation images with labels
+dataB_root: /datasets/TuSimple        # dataset folder location for real-world images without labels

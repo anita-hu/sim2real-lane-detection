@@ -60,15 +60,14 @@ if distributed:
 
 print('Start testing...')
 
-if config['datasetB'] == 'CULane':
+if config['dataset'] == 'CULane':
     cls_num_per_lane = 18
-elif config['datasetB'] == 'TuSimple':
+elif config['dataset'] == 'TuSimple':
     cls_num_per_lane = 56
 else:
     raise NotImplementedError("Only support CULane|TuSimple")
 
-loader = get_test_loader(batch_size=config["batch_size"], data_root=config["dataB_root"],
-                         dataset=config["datasetB"], distributed=False,
+loader = get_test_loader(batch_size=config["batch_size"], data_root=config["dataB_root"], distributed=False,
                          image_dim=(config["input_height"], config["input_width"]))
 
 if distributed:
@@ -77,5 +76,5 @@ if distributed:
 if not os.path.exists(opts.output_folder):
     os.mkdir(opts.output_folder)
 
-eval_lane(trainer, config['datasetB'], config['dataB_root'], loader, opts.output_folder, config['lane']['griding_num'],
+eval_lane(trainer, config['dataset'], config['dataB_root'], loader, opts.output_folder, config['lane']['griding_num'],
           False)
