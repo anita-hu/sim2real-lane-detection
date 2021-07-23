@@ -40,7 +40,7 @@ Please see [DATASET.md](./DATASET.md)
 
 #### Training
 ```
-python train.py --config configs/unit.yaml
+python train.py --config configs/tusimple/unit.yaml
 ```
 
 #### Evaluating
@@ -51,7 +51,7 @@ make
 ```
 For evaluation, run
 ```
-python test.py --config configs/unit.yaml \
+python test.py --config configs/tusimple/unit.yaml \
                --checkpoint outputs/unit/checkpoints/gen.pt \
                --output_folder results
 ```
