@@ -28,6 +28,8 @@ def generate_video_demo(model, dataloader: torch.utils.data.DataLoader,
     :image_dims: (w, h)
     """
 
+    in_width = 800
+
     outfile = os.path.join("outputs/", outfile)
     fourcc = cv2.VideoWriter_fourcc(*'MJPG')
     vout = cv2.VideoWriter(outfile, fourcc , framerate, image_dims)
@@ -39,7 +41,7 @@ def generate_video_demo(model, dataloader: torch.utils.data.DataLoader,
         with torch.no_grad():
             out = model.eval_lanes(imgs)  # finally, run the images through the model.
 
-        col_sample = np.linspace(0, 800 - 1, griding_num)
+        col_sample = np.linspace(0, in_width - 1, griding_num)
         col_sample_w = col_sample[1] - col_sample[0]
 
 
@@ -63,8 +65,8 @@ def generate_video_demo(model, dataloader: torch.utils.data.DataLoader,
                 for k in range(out_j.shape[0]):
                     if out_j[k, i] > 0:
                         # TODO debug this Sinclair, check math
-                        ppp = (int(out_j[k, i] * col_sample_w * image_dims[0] / 800) - 1, \
-                               int(image_dims[1] * (row_anchor[cls_num_per_lane-1-k]/288)) - 1 )
+                        ppp = (int(out_j[k, i] * col_sample_w * image_dims[0] / in_width) - 1, \
+                               int(row_anchor[cls_num_per_lane-1-k]) - 1 )
                         vis = cv2.circle(vis,ppp,5,(0,255,0),-1)
         vout.write(vis)  # write a frame
     vout.release()  # release lock for writing video
@@ -74,7 +76,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str, help="model configuration, should match the training config that was used to run the checkpoint")
     parser.add_argument('--checkpoint', type=str, help="state dict for the model, to be loaded in and used for the demo.")
-    parser.add_argument('--output_path', type=str, default='demo.avi', help="output video file")
+    parser.add_argument('--output_prefix', type=str, default='demo', help="output video files prefix")
     opts = parser.parse_args()
 
     print("starting to test")
@@ -140,9 +142,10 @@ if __name__ == "__main__":
     trainer.cuda()
     trainer.eval()
 
-    for split, dataset in zip(splits, datasets):
+    for i, (split, dataset) in enumerate(zip(splits, datasets)):
         # TODO technically, we would need a different outfile name for each dataset
         loader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle = False, num_workers=1)
         generate_video_demo(trainer, loader, cfg["dataB_root"], (img_w, img_h),
-                            griding_num=cfg["lane"]["griding_num"], outfile=opts.output_path)
+                            griding_num=cfg["lane"]["griding_num"],
+                            outfile=f"{opts.output_prefix}{i}.avi")
 
