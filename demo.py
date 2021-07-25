@@ -101,6 +101,7 @@ if __name__ == "__main__":
         datasets = [LaneTestDataset(cfg["dataB_root"], os.path.join(cfg["dataB_root"], 'list/test_split/'+split),img_transform = img_transforms) for split in splits]
         img_w, img_h = 1640, 590
         row_anchor = get_culane_row_anchor(img_h)
+        framerate = 30.0
 
     elif cfg["datasetB"] == 'TuSimple':
         cls_num_per_lane = 56
@@ -109,6 +110,9 @@ if __name__ == "__main__":
                                     img_transform = img_transforms) for split in splits]
         img_w, img_h = 1280, 720
         row_anchor = get_tusimple_row_anchor(img_h)
+
+        framerate = 2 # TuSimple is not sequential, so settle for the slideshow.
+        # if you raise the framerate on TuSimple it's seizure-inducing
     else:
         raise NotImplementedError
 
@@ -147,5 +151,6 @@ if __name__ == "__main__":
         loader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle = False, num_workers=1)
         generate_video_demo(trainer, loader, cfg["dataB_root"], (img_w, img_h),
                             griding_num=cfg["lane"]["griding_num"],
-                            outfile=f"{opts.output_prefix}{i}.avi")
+                            outfile=f"{opts.output_prefix}{i}.avi",
+                            framerate=framerate)
 
