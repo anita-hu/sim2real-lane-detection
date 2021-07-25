@@ -40,52 +40,23 @@ def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distr
         mytransforms.RandomLROffsetLABEL(200)
     ])
     if dataset == 'CULane':
-        culane_row_anchor = get_culane_row_anchor(image_dim[0])
-        train_dataset = LaneClsDataset(data_root,
-                                       os.path.join(data_root, 'list/train_gt.txt'),
-                                       img_transform=img_transform,
-                                       target_transform=target_transform,
-                                       simu_transform=simu_transform,
-                                       segment_transform=segment_transform,
-                                       row_anchor=culane_row_anchor,
-                                       griding_num=griding_num,
-                                       image_dim=image_dim,
-                                       use_aux=use_aux,
-                                       num_lanes=num_lanes,
-                                       return_label=return_label)
-
+        row_anchor = get_culane_row_anchor(image_dim[0])
     elif dataset == 'TuSimple':
-        tusimple_row_anchor = get_tusimple_row_anchor(image_dim[0])
-        train_dataset = LaneClsDataset(data_root,
-                                       os.path.join(data_root, 'train_gt.txt'),
-                                       img_transform=img_transform,
-                                       target_transform=target_transform,
-                                       simu_transform=simu_transform,
-                                       griding_num=griding_num,
-                                       row_anchor=tusimple_row_anchor,
-                                       image_dim=image_dim,
-                                       segment_transform=segment_transform,
-                                       use_aux=use_aux,
-                                       num_lanes=num_lanes,
-                                       return_label=return_label)
-
-    elif dataset == 'WATO':
-        tusimple_row_anchor = get_tusimple_row_anchor(image_dim[0])
-        train_dataset = LaneClsDataset(data_root,
-                                       os.path.join(data_root, 'train_gt.txt'),
-                                       img_transform=img_transform,
-                                       target_transform=target_transform,
-                                       simu_transform=simu_transform,
-                                       griding_num=griding_num,
-                                       row_anchor=tusimple_row_anchor,
-                                       image_dim=image_dim,
-                                       segment_transform=segment_transform,
-                                       use_aux=use_aux,
-                                       num_lanes=num_lanes,
-                                       return_label=return_label)
+        row_anchor = get_tusimple_row_anchor(image_dim[0])
     else:
-        raise NotImplementedError("Only support CULane|TuSimple|WATO")
-
+        raise NotImplementedError("Only support CULane|TuSimple")
+    train_dataset = LaneClsDataset(data_root,
+                                   os.path.join(data_root, 'list/train_gt.txt'),
+                                   img_transform=img_transform,
+                                   target_transform=target_transform,
+                                   simu_transform=simu_transform,
+                                   griding_num=griding_num,
+                                   row_anchor=row_anchor,
+                                   image_dim=image_dim,
+                                   segment_transform=segment_transform,
+                                   use_aux=use_aux,
+                                   num_lanes=num_lanes,
+                                   return_label=return_label)
     if distributed:
         sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     else:
@@ -96,22 +67,15 @@ def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distr
     return train_loader
 
 
-def get_test_loader(batch_size, data_root, dataset, distributed, image_dim=(288, 800), partition='test'):
+def get_test_loader(batch_size, data_root, distributed, image_dim=(288, 800), partition='test'):
     img_transforms = transforms.Compose([
         transforms.Resize(image_dim),
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
     ])
     assert partition in ['test', 'val']
-    if dataset == 'CULane':
-        test_dataset = LaneTestDataset(data_root, os.path.join(data_root, f'list/{partition}.txt'),
-                                       img_transform=img_transforms)
-    elif dataset == 'TuSimple':
-        test_dataset = LaneTestDataset(data_root, os.path.join(data_root, f'{partition}.txt'),
-                                       img_transform=img_transforms)
-    else:
-        raise NotImplementedError("Only support CULane|TuSimple")
-
+    test_dataset = LaneTestDataset(data_root, os.path.join(data_root, f'list/{partition}.txt'),
+                                   img_transform=img_transforms)
     if distributed:
         sampler = SeqDistributedSampler(test_dataset, shuffle=False)
     else:

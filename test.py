@@ -16,7 +16,6 @@ parser.add_argument('--output_folder', type=str, help="output folder for results
 parser.add_argument('--checkpoint', type=str, help="checkpoint of autoencoders and lane model")
 parser.add_argument('--distributed', action='store_true', help="whether use distributed testing")
 parser.add_argument('--local_rank', type=int, default=0)
-parser.add_argument('--output_path', type=str, default='.', help="path for logs, checkpoints, and VGG model weight")
 opts = parser.parse_args()
 
 torch.backends.cudnn.benchmark = True
@@ -27,8 +26,8 @@ torch.manual_seed(config['random_seed'])
 torch.cuda.manual_seed(config['random_seed'])
 
 # Setup model and data loader
-config['vgg_model_path'] = opts.output_path
-config['lane']['use_aux'] = False
+config['vgg_w'] = 0  # do not load vgg model
+config['lane']['use_aux'] = False  # no aux segmentation branch
 if config['trainer'] == 'MUNIT':
     style_dim = config['gen']['style_dim']
     trainer = MUNIT_Trainer(config)
@@ -60,15 +59,14 @@ if distributed:
 
 print('Start testing...')
 
-if config['datasetB'] == 'CULane':
+if config['dataset'] == 'CULane':
     cls_num_per_lane = 18
-elif config['datasetB'] == 'TuSimple':
+elif config['dataset'] == 'TuSimple':
     cls_num_per_lane = 56
 else:
     raise NotImplementedError("Only support CULane|TuSimple")
 
-loader = get_test_loader(batch_size=config["batch_size"], data_root=config["dataB_root"],
-                         dataset=config["datasetB"], distributed=False,
+loader = get_test_loader(batch_size=config["batch_size"], data_root=config["dataB_root"], distributed=False,
                          image_dim=(config["input_height"], config["input_width"]))
 
 if distributed:
@@ -77,5 +75,5 @@ if distributed:
 if not os.path.exists(opts.output_folder):
     os.mkdir(opts.output_folder)
 
-eval_lane(trainer, config['datasetB'], config['dataB_root'], loader, opts.output_folder, config['lane']['griding_num'],
+eval_lane(trainer, config['dataset'], config['dataB_root'], loader, opts.output_folder, config['lane']['griding_num'],
           False)

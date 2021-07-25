@@ -35,6 +35,7 @@ config['vgg_model_path'] = opts.output_path
 config["resume"] = opts.resume
 
 # initialize wandb
+os.environ['WANDB_CONSOLE'] = 'off'
 wandb.init(entity=opts.entity, project=opts.project, config=config)
 
 # set random seed for reproducibility
@@ -43,24 +44,23 @@ torch.backends.cudnn.deterministic = True
 
 # Setup data loaders
 # NOTE: By convention, dataset A will be simulation, labelled data, while dataset B will be real-world without labels
-print(f"Loading {config['datasetA']} as dataset A. (labelled, simulated)")
+print(f"Loading dataset A (labelled, simulated) from {config['dataA_root']}")
 train_loader_a = get_train_loader(config["batch_size"], config["dataA_root"],
-                                  griding_num=config["lane"]["griding_num"], dataset=config["datasetA"],
+                                  griding_num=config["lane"]["griding_num"], dataset=config["dataset"],
                                   use_aux=config["lane"]["use_aux"], distributed=False,
                                   num_lanes=config["lane"]["num_lanes"], baseline=baseline,
                                   image_dim=(config["input_height"], config["input_width"]),
                                   return_label=True)
 
-print(f"Loading {config['datasetB']} as dataset B.")
+print(f"Loading dataset B (unlabelled, real-world) from {config['dataA_root']}")
 train_loader_b = get_train_loader(config["batch_size"], config["dataB_root"],
-                                  griding_num=config["lane"]["griding_num"], dataset=config["datasetB"],
+                                  griding_num=config["lane"]["griding_num"], dataset=config["dataset"],
                                   use_aux=config["lane"]["use_aux"], distributed=False,
                                   num_lanes=config["lane"]["num_lanes"], baseline=baseline,
                                   image_dim=(config["input_height"], config["input_width"]))
 
 val_loader_b = get_test_loader(batch_size=config["batch_size"], data_root=config["dataB_root"],
-                               dataset=config["datasetB"], distributed=False,
-                               image_dim=(config["input_height"], config["input_width"]),
+                               distributed=False, image_dim=(config["input_height"], config["input_width"]),
                                partition="val")
 
 # Setup model
@@ -109,6 +109,10 @@ for epoch in range(start_epoch, config['max_epoch']):
         # Main training code
         trainer.dis_update(images_a, images_b, config)
         trainer.gen_update(images_a, images_b, label_a, config)
+
+        if config["mixed_precision"]:
+            trainer.scaler.update()
+
         torch.cuda.synchronize()
 
         if (iterations + 1) % config['log_iter'] == 0:
@@ -118,6 +122,8 @@ for epoch in range(start_epoch, config['max_epoch']):
                 wandb.log({"dis_lr": trainer.dis_scheduler.get_last_lr()[0]}, step=(iterations + 1))
             if trainer.gen_scheduler is not None:
                 wandb.log({"gen_lr": trainer.gen_scheduler.get_last_lr()[0]}, step=(iterations + 1))
+            if trainer.lane_scheduler is not None:
+                wandb.log({"lane_lr": trainer.lane_scheduler.get_last_lr()[0]}, step=(iterations + 1))
 
         trainer.update_learning_rate()
         iterations += 1
@@ -138,7 +144,7 @@ for epoch in range(start_epoch, config['max_epoch']):
 
     print("Validating epoch", epoch + 1)
     with Timer("Elapsed time in validation: %f"):
-        log_dict, val_metric = eval_lane(trainer, config['datasetB'], config['dataB_root'], val_loader_b,
+        log_dict, val_metric = eval_lane(trainer, config['dataset'], config['dataB_root'], val_loader_b,
                                          output_directory, config['lane']['griding_num'], config['lane']['use_aux'],
                                          "val")
 
