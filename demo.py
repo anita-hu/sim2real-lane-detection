@@ -149,7 +149,7 @@ if __name__ == "__main__":
 
     for i, (split, dataset) in enumerate(zip(splits, datasets)):
 
-        outfile = f"{opts.output_prefix}_{cfg['dataset']}_{split[:-4]}.avi",
+        outfile = f"{opts.output_prefix}_{cfg['dataset']}_{split[:-4]}.avi"
 
         loader = torch.utils.data.DataLoader(dataset,
                                              batch_size=cfg["batch_size"],
