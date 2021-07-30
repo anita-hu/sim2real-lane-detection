@@ -2,7 +2,6 @@
 datasets
 logs
 outputs
-models
 
 # weights and biases logging
 wandb/

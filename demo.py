@@ -20,15 +20,15 @@ from utils import get_config
 
 
 def generate_video_demo(model, dataloader: torch.utils.data.DataLoader,
-                        dataset_root: str, image_dims, griding_num,
+                        dataset_root: str, image_dims, model_in_dims, griding_num,
                         outfile="demo.avi", framerate=30.0):
     """
-    generates a video of sequential frames from the dataset, using the model
+    Generates a video of sequential frames from the dataset, using the model
     to predict the lanes.
-    :image_dims: (w, h)
+    :image_dims: (w, h) of the images used to create the video
+    :model_in_dims: (w, h) of the model's input
     """
 
-    in_width = 800
 
     outfile = os.path.join("outputs/", outfile)
     fourcc = cv2.VideoWriter_fourcc(*'MJPG')
@@ -41,34 +41,35 @@ def generate_video_demo(model, dataloader: torch.utils.data.DataLoader,
         with torch.no_grad():
             out = model.eval_lanes(imgs)  # finally, run the images through the model.
 
-        col_sample = np.linspace(0, in_width - 1, griding_num)
-        col_sample_w = col_sample[1] - col_sample[0]
+        for x in range(out.size()[0]):
+            col_sample = np.linspace(0, model_in_dims[0] - 1, griding_num)
+            col_sample_w = col_sample[1] - col_sample[0]
 
 
-        out_j = out[0].data.cpu().numpy()
-        out_j = out_j[:, ::-1, :]
-        prob = scipy.special.softmax(out_j[:-1, :, :], axis=0)
-        idx = np.arange(griding_num) + 1
-        idx = idx.reshape(-1, 1, 1)
-        loc = np.sum(prob * idx, axis=0)
-        out_j = np.argmax(out_j, axis=0)
-        loc[out_j == griding_num] = 0
-        out_j = loc
+            out_j = out[x].data.cpu().numpy()
+            out_j = out_j[:, ::-1, :]
+            prob = scipy.special.softmax(out_j[:-1, :, :], axis=0)
+            idx = np.arange(griding_num) + 1
+            idx = idx.reshape(-1, 1, 1)
+            loc = np.sum(prob * idx, axis=0)
+            out_j = np.argmax(out_j, axis=0)
+            loc[out_j == griding_num] = 0
+            out_j = loc
 
-        # import pdb; pdb.set_trace()
-        filename = os.path.join(dataset_root, names[0])
-        vis = cv2.imread(filename)  # read the original file from the dataset
-        if vis is None:
-            raise ValueError(f"openCV failed to read a frame. Does the file {filename} exist?")
-        for i in range(out_j.shape[1]):
-            if np.sum(out_j[:, i] != 0) > 2:
-                for k in range(out_j.shape[0]):
-                    if out_j[k, i] > 0:
-                        # TODO debug this Sinclair, check math
-                        ppp = (int(out_j[k, i] * col_sample_w * image_dims[0] / in_width) - 1, \
-                               int(row_anchor[cls_num_per_lane-1-k]) - 1 )
-                        vis = cv2.circle(vis,ppp,5,(0,255,0),-1)
-        vout.write(vis)  # write a frame
+            # import pdb; pdb.set_trace()
+            filename = os.path.join(dataset_root, names[x])
+            vis = cv2.imread(filename)  # read the original file from the dataset
+            if vis is None:
+                raise ValueError(f"OpenCV failed to read a frame. Does the file {filename} exist?")
+            for i in range(out_j.shape[1]):
+                if np.sum(out_j[:, i] != 0) > 2:
+                    for k in range(out_j.shape[0]):
+                        if out_j[k, i] > 0:
+                            ppp = (int(out_j[k, i] * col_sample_w * image_dims[0] / \
+                                       model_in_dims[0]) - 1, \
+                                   int(row_anchor[cls_num_per_lane-1-k]) - 1 )
+                            vis = cv2.circle(vis, ppp, 5, (0, 255, 0), -1)
+            vout.write(vis)  # write a frame
     vout.release()  # release lock for writing video
 
 
@@ -79,7 +80,7 @@ if __name__ == "__main__":
     parser.add_argument('--output_prefix', type=str, default='demo', help="output video files prefix")
     opts = parser.parse_args()
 
-    print("starting to test")
+    print("Starting to test.")
 
 
     ############################################################################
@@ -90,7 +91,7 @@ if __name__ == "__main__":
 
     # image transforms for the testset
     img_transforms = transforms.Compose([
-        transforms.Resize((288, 800)),
+        transforms.Resize((cfg["input_height"], cfg["input_width"])),
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
     ])
@@ -112,7 +113,7 @@ if __name__ == "__main__":
         row_anchor = get_tusimple_row_anchor(img_h)
 
         framerate = 2 # TuSimple is not sequential, so settle for the slideshow.
-        # if you raise the framerate on TuSimple it's seizure-inducing
+        # If you raise the framerate on TuSimple it's seizure-inducing
     else:
         raise NotImplementedError
 
@@ -147,10 +148,15 @@ if __name__ == "__main__":
     trainer.eval()
 
     for i, (split, dataset) in enumerate(zip(splits, datasets)):
-        # TODO technically, we would need a different outfile name for each dataset
-        loader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle = False, num_workers=1)
+
+        outfile = f"{opts.output_prefix}_{cfg['dataset']}_{split[:-4]}.avi",
+
+        loader = torch.utils.data.DataLoader(dataset,
+                                             batch_size=cfg["batch_size"],
+                                             shuffle = False, num_workers=1)
         generate_video_demo(trainer, loader, cfg["dataB_root"], (img_w, img_h),
+                            model_in_dims=(cfg["input_width"], cfg["input_height"]),
                             griding_num=cfg["lane"]["griding_num"],
-                            outfile=f"{opts.output_prefix}{i}.avi",
+                            outfile=outfile,
                             framerate=framerate)
 
