@@ -14,16 +14,17 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--config', type=str, help="net configuration")
 parser.add_argument('--output_folder', type=str, help="output folder for results")
 parser.add_argument('--checkpoint', type=str, help="checkpoint of autoencoders and lane model")
+parser.add_argument('--seed', type=int, default=10, help="random seed")
 parser.add_argument('--distributed', action='store_true', help="whether use distributed testing")
 parser.add_argument('--local_rank', type=int, default=0)
 opts = parser.parse_args()
 
+torch.manual_seed(opts.seed)
+torch.cuda.manual_seed(opts.seed)
 torch.backends.cudnn.benchmark = True
 
 # Load experiment setting
 config = get_config(opts.config)
-torch.manual_seed(config['random_seed'])
-torch.cuda.manual_seed(config['random_seed'])
 
 # Setup model and data loader
 config['vgg_w'] = 0  # do not load vgg model
