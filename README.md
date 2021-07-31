@@ -56,6 +56,15 @@ python test.py --config configs/tusimple/unit.yaml \
                --output_folder results
 ```
 
+#### Demo
+
+You can visualize results with openCV with the `demo.py` script:
+
+```
+python demo.py --config configs/tusimple/unit.yaml --checkpoint /path/to/pretrained/model.pt
+```
+Find the outputs in the `outputs` folder.
+
 ### Reference
 
 This code is built upon [UNIT](https://github.com/mingyuliutw/UNIT), [DRIT](https://github.com/HsinYingLee/DRIT), and 
