@@ -5,7 +5,7 @@ Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses
 TODO: Figure out license
 """
 from networks.unit import MsImageDis, VAEGen
-from networks.lane_detector import UltraFastLaneDetector
+from networks.lane_detector import Resnet, UltraFastLaneDetector
 from utils import weights_init, vgg_preprocess, load_vgg16, get_scheduler
 from lane_losses import UltraFastLaneDetectionLoss
 from lane_metrics import get_metric_dict, update_metrics, reset_metrics
@@ -25,7 +25,7 @@ class UNIT_Trainer(nn.Module):
         self.dis_b = MsImageDis(hyperparameters['input_dim_b'], hyperparameters['dis'])  # discriminator for domain b
         self.instancenorm = nn.InstanceNorm2d(512, affine=False)
         input_size = (hyperparameters['input_height'], hyperparameters['input_width'])
-        self.lane_model = UltraFastLaneDetector(hyperparameters['lane'], feature_dims=self.gen_a.enc.feature_dims,
+        self.lane_model = UltraFastLaneDetector(hyperparameters['lane'], feature_dims=(128, 256, 512),
                                                 size=input_size)
         self.lane_loss = UltraFastLaneDetectionLoss(hyperparameters['lane'])
 
@@ -43,8 +43,14 @@ class UNIT_Trainer(nn.Module):
         lr = hyperparameters['lane']['lr']
         self.lane_opt = torch.optim.Adam([p for p in self.lane_model.parameters() if p.requires_grad],
                                          lr=lr, betas=(beta1, beta2), weight_decay=hyperparameters['weight_decay'])
+        if 'warmup_iters' in hyperparameters['dis']:
+            hyperparameters['warmup_iters'] = hyperparameters['dis']['warmup_iters']
         self.dis_scheduler = get_scheduler(self.dis_opt, hyperparameters)
+        if 'warmup_iters' in hyperparameters['gen']:
+            hyperparameters['warmup_iters'] = hyperparameters['gen']['warmup_iters']
         self.gen_scheduler = get_scheduler(self.gen_opt, hyperparameters)
+        if 'warmup_iters' in hyperparameters['lane']:
+            hyperparameters['warmup_iters'] = hyperparameters['lane']['warmup_iters']
         self.lane_scheduler = get_scheduler(self.lane_opt, hyperparameters)
 
         # Mixed precision training
@@ -142,7 +148,7 @@ class UNIT_Trainer(nn.Module):
             h_b_recon, n_b_recon = self.gen_a.encode(x_ba)
             h_a_recon, n_a_recon = self.gen_b.encode(x_ab)
             # lane detection (cyclic)
-            fea_a_recon = self.gen_a.enc.stored_features
+            fea_a_recon = self.gen_b.enc.stored_features
             pred_a_cyc = self.lane_model(fea_a_recon)
             # decode again (if needed)
             x_aba = self.gen_a.decode(h_a_recon + n_a_recon) if hyperparameters['recon_x_cyc_w'] > 0 else None

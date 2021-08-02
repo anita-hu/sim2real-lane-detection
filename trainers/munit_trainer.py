@@ -143,7 +143,7 @@ class MUNIT_Trainer(nn.Module):
             c_b_recon, s_a_recon = self.gen_a.encode(x_ba)
             c_a_recon, s_b_recon = self.gen_b.encode(x_ab)
             # lane detection (cyclic)
-            fea_a_recon = self.gen_a.enc_content.stored_features
+            fea_a_recon = self.gen_b.enc_content.stored_features
             pred_a_cyc = self.lane_model(fea_a_recon)
             # decode again (if needed)
             x_aba = self.gen_a.decode(c_a_recon, s_a_prime) if hyperparameters['recon_x_cyc_w'] > 0 else None

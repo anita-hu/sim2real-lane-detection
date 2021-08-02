@@ -25,10 +25,10 @@ import numpy as np
 
 import torch
 import torchvision
-import torch.nn.modules
+from torch import nn
 
 
-class Resnet(torch.nn.Module):
+class Resnet(nn.Module):
     def __init__(self, layers, pretrained=False):
         super(Resnet, self).__init__()
         if layers == '18':
@@ -73,13 +73,13 @@ class Resnet(torch.nn.Module):
         return x2, x3, x4
 
 
-class ConvBnRelu(torch.nn.Module):
+class ConvBnRelu(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, bias=False):
         super(ConvBnRelu, self).__init__()
-        self.conv = torch.nn.Conv2d(in_channels, out_channels, kernel_size,
-                                    stride=stride, padding=padding, dilation=dilation, bias=bias)
-        self.bn = torch.nn.BatchNorm2d(out_channels)
-        self.relu = torch.nn.ReLU()
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size,
+                              stride=stride, padding=padding, dilation=dilation, bias=bias)
+        self.bn = nn.BatchNorm2d(out_channels)
+        self.relu = nn.ReLU()
 
     def forward(self, x):
         x = self.conv(x)
@@ -88,7 +88,10 @@ class ConvBnRelu(torch.nn.Module):
         return x
 
 
-class UltraFastLaneDetector(torch.nn.Module):
+from networks.resnet_autoencoder import BasicBlockEnc
+
+
+class UltraFastLaneDetector(nn.Module):
     def __init__(self, hyperparams, feature_dims=None, size=(288, 800), baseline=False):
         super(UltraFastLaneDetector, self).__init__()
 
@@ -103,53 +106,62 @@ class UltraFastLaneDetector(torch.nn.Module):
         # input : nchw,
         # output: (w+1) * sample_rows * 4
 
+        if not baseline:
+            self.layer2 = nn.Sequential(BasicBlockEnc(128, 1))
+            self.layer3 = nn.Sequential(BasicBlockEnc(128, 2), BasicBlockEnc(256, 1),
+                                        BasicBlockEnc(256, 1))
+            self.layer4 = nn.Sequential(BasicBlockEnc(256, 2), BasicBlockEnc(512, 1))
+
         if self.use_aux:
-            self.aux_header2 = torch.nn.Sequential(
+            self.aux_header2 = nn.Sequential(
                 ConvBnRelu(feature_dims[0], 128, kernel_size=3, stride=1, padding=1),
                 ConvBnRelu(128, 128, 3, padding=1),
                 ConvBnRelu(128, 128, 3, padding=1),
                 ConvBnRelu(128, 128, 3, padding=1),
             )
-            self.aux_header3 = torch.nn.Sequential(
+            self.aux_header3 = nn.Sequential(
                 ConvBnRelu(feature_dims[1], 128, kernel_size=3, stride=1, padding=1),
                 ConvBnRelu(128, 128, 3, padding=1),
                 ConvBnRelu(128, 128, 3, padding=1),
             )
-            self.aux_header4 = torch.nn.Sequential(
+            self.aux_header4 = nn.Sequential(
                 ConvBnRelu(feature_dims[2], 128, kernel_size=3, stride=1, padding=1),
                 ConvBnRelu(128, 128, 3, padding=1),
             )
-            self.aux_combine = torch.nn.Sequential(
+            self.aux_combine = nn.Sequential(
                 ConvBnRelu(384, 256, 3, padding=2, dilation=2),
                 ConvBnRelu(256, 128, 3, padding=2, dilation=2),
                 ConvBnRelu(128, 128, 3, padding=2, dilation=2),
                 ConvBnRelu(128, 128, 3, padding=4, dilation=4),
-                torch.nn.Conv2d(128, self.cls_dim[-1] + 1, 1)
+                nn.Conv2d(128, self.cls_dim[-1] + 1, 1)
                 # output : n, num_of_lanes+1, h, w
             )
             initialize_weights(self.aux_header2, self.aux_header3, self.aux_header4, self.aux_combine)
 
-        self.pool = torch.nn.Conv2d(feature_dims[2], 8, 1)
+        self.pool = nn.Conv2d(feature_dims[2], 8, 1)
 
-        self.cls_in = int(size[0]/4*size[1]/4*8) if not baseline else int(size[0]/32*size[1]/32*8)
-        self.cls = torch.nn.Sequential(
-            torch.nn.Linear(self.cls_in, 2048),
-            torch.nn.ReLU(),
-            torch.nn.Linear(2048, self.total_dim),
+        self.cls_in = int(size[0]/16*size[1]/16*8) if not baseline else int(size[0]/32*size[1]/32*8)
+        self.cls = nn.Sequential(
+            nn.Linear(self.cls_in, 2048),
+            nn.ReLU(),
+            nn.Linear(2048, self.total_dim),
         )
         initialize_weights(self.cls)
 
     def forward(self, x):
-        x2, x3, fea = x
+        if self.baseline:
+            x2, x3, fea = x
+        else:
+            x2 = self.layer2(x)
+            x3 = self.layer3(x2)
+            fea = self.layer4(x3)
 
         if self.use_aux:
             x2 = self.aux_header2(x2)
             x3 = self.aux_header3(x3)
-            if self.baseline:
-                x3 = torch.nn.functional.interpolate(x3, scale_factor=2, mode='bilinear')
+            x3 = nn.functional.interpolate(x3, scale_factor=2, mode='bilinear')
             x4 = self.aux_header4(fea)
-            if self.baseline:
-                x4 = torch.nn.functional.interpolate(x4, scale_factor=4, mode='bilinear')
+            x4 = nn.functional.interpolate(x4, scale_factor=4, mode='bilinear')
             aux_seg = torch.cat([x2, x3, x4], dim=1)
             aux_seg = self.aux_combine(aux_seg)
         else:
@@ -174,17 +186,17 @@ def real_init_weights(m):
         for mini_m in m:
             real_init_weights(mini_m)
     else:
-        if isinstance(m, torch.nn.Conv2d):
-            torch.nn.init.kaiming_normal_(m.weight, nonlinearity='relu')
+        if isinstance(m, nn.Conv2d):
+            nn.init.kaiming_normal_(m.weight, nonlinearity='relu')
             if m.bias is not None:
-                torch.nn.init.constant_(m.bias, 0)
-        elif isinstance(m, torch.nn.Linear):
+                nn.init.constant_(m.bias, 0)
+        elif isinstance(m, nn.Linear):
             m.weight.data.normal_(0.0, std=0.01)
-        elif isinstance(m, torch.nn.BatchNorm2d):
-            torch.nn.init.constant_(m.weight, 1)
-            torch.nn.init.constant_(m.bias, 0)
-        elif isinstance(m, torch.nn.Module):
+        elif isinstance(m, nn.BatchNorm2d):
+            nn.init.constant_(m.weight, 1)
+            nn.init.constant_(m.bias, 0)
+        elif isinstance(m, nn.Module):
             for mini_m in m.children():
                 real_init_weights(mini_m)
         else:
-            print('unkonwn module', m)
+            print('Unknown module', m)

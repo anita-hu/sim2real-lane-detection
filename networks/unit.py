@@ -12,6 +12,9 @@ try:
 except ImportError: # will be 3.x series
     pass
 
+from networks.resnet_autoencoder import ResNetEnc, ResNetDec
+from networks.norm import LayerNorm, AdaptiveInstanceNorm2d
+
 ##################################################################################
 # Discriminator
 ##################################################################################
@@ -93,19 +96,18 @@ class AdaINGen(nn.Module):
         super(AdaINGen, self).__init__()
         dim = params['dim']
         style_dim = params['style_dim']
-        n_downsample = params['n_downsample']
-        n_res = params['n_res']
+        # n_downsample = params['n_downsample']
+        # n_res = params['n_res']
         activ = params['activ']
         pad_type = params['pad_type']
         mlp_dim = params['mlp_dim']
-        last_n = params['store_last_n']
 
         # style encoder
         self.enc_style = StyleEncoder(4, input_dim, dim, style_dim, norm='none', activ=activ, pad_type=pad_type)
 
         # content encoder
-        self.enc_content = ContentEncoder(n_downsample, n_res, input_dim, dim, 'in', activ, pad_type=pad_type, store_last_n=last_n)
-        self.dec = Decoder(n_downsample, n_res, self.enc_content.output_dim, input_dim, res_norm='adain', activ=activ, pad_type=pad_type)
+        self.enc_content = ResNetEnc() # ContentEncoder(n_downsample, n_res, input_dim, dim, 'in', activ, pad_type=pad_type, store_last_n=3)
+        self.dec = ResNetDec() # Decoder(n_downsample, n_res, self.enc_content.output_dim, input_dim, res_norm='adain', activ=activ, pad_type=pad_type)
 
         # MLP to generate AdaIN parameters
         self.mlp = MLP(style_dim, self.get_num_adain_params(self.dec), mlp_dim, 3, norm='none', activ=activ)
@@ -154,16 +156,15 @@ class VAEGen(nn.Module):
     # VAE architecture
     def __init__(self, input_dim, params):
         super(VAEGen, self).__init__()
-        dim = params['dim']
-        n_downsample = params['n_downsample']
-        n_res = params['n_res']
-        activ = params['activ']
-        pad_type = params['pad_type']
-        last_n = params['store_last_n']
+        # dim = params['dim']
+        # n_downsample = params['n_downsample']
+        # n_res = params['n_res']
+        # activ = params['activ']
+        # pad_type = params['pad_type']
 
         # content encoder
-        self.enc = ContentEncoder(n_downsample, n_res, input_dim, dim, 'in', activ, pad_type=pad_type, store_last_n=last_n)
-        self.dec = Decoder(n_downsample, n_res, self.enc.output_dim, input_dim, res_norm='in', activ=activ, pad_type=pad_type)
+        self.enc = ResNetEnc() # ContentEncoder(n_downsample, n_res, input_dim, dim, 'in', activ, pad_type=pad_type, store_last_n=3)
+        self.dec = ResNetDec() # Decoder(n_downsample, n_res, self.enc.output_dim, input_dim, res_norm='in', activ=activ, pad_type=pad_type)
 
     def forward(self, images):
         # This is a reduced VAE implementation where we assume the outputs are multivariate Gaussian distribution with mean = hiddens and std_dev = all ones.
@@ -290,8 +291,8 @@ class ResBlock(nn.Module):
         super(ResBlock, self).__init__()
         self.output_dim = dim
         model = []
-        model += [Conv2dBlock(dim ,dim, 3, 1, 1, norm=norm, activation=activation, pad_type=pad_type)]
-        model += [Conv2dBlock(dim ,dim, 3, 1, 1, norm=norm, activation='none', pad_type=pad_type)]
+        model += [Conv2dBlock(dim, dim, 3, 1, 1, norm=norm, activation=activation, pad_type=pad_type)]
+        model += [Conv2dBlock(dim, dim, 3, 1, 1, norm=norm, activation='none', pad_type=pad_type)]
         self.model = nn.Sequential(*model)
 
     def forward(self, x):
@@ -301,7 +302,7 @@ class ResBlock(nn.Module):
         return out
 
 class Conv2dBlock(nn.Module):
-    def __init__(self, input_dim ,output_dim, kernel_size, stride,
+    def __init__(self, input_dim, output_dim, kernel_size, stride,
                  padding=0, norm='none', activation='relu', pad_type='zero'):
         super(Conv2dBlock, self).__init__()
         self.output_dim = output_dim
@@ -456,68 +457,4 @@ class Vgg16(nn.Module):
 
         return relu5_3
         # return [relu1_2, relu2_2, relu3_3, relu4_3]
-
-##################################################################################
-# Normalization layers
-##################################################################################
-class AdaptiveInstanceNorm2d(nn.Module):
-    def __init__(self, num_features, eps=1e-5, momentum=0.1):
-        super(AdaptiveInstanceNorm2d, self).__init__()
-        self.num_features = num_features
-        self.eps = eps
-        self.momentum = momentum
-        # weight and bias are dynamically assigned
-        self.weight = None
-        self.bias = None
-        # just dummy buffers, not used
-        self.register_buffer('running_mean', torch.zeros(num_features))
-        self.register_buffer('running_var', torch.ones(num_features))
-
-    def forward(self, x):
-        assert self.weight is not None and self.bias is not None, "Please assign weight and bias before calling AdaIN!"
-        b, c = x.size(0), x.size(1)
-        running_mean = self.running_mean.repeat(b)
-        running_var = self.running_var.repeat(b)
-
-        # Apply instance norm
-        x_reshaped = x.contiguous().view(1, b * c, *x.size()[2:])
-
-        out = F.batch_norm(
-            x_reshaped, running_mean, running_var, self.weight, self.bias,
-            True, self.momentum, self.eps)
-
-        return out.view(b, c, *x.size()[2:])
-
-    def __repr__(self):
-        return self.__class__.__name__ + '(' + str(self.num_features) + ')'
-
-
-class LayerNorm(nn.Module):
-    def __init__(self, num_features, eps=1e-5, affine=True):
-        super(LayerNorm, self).__init__()
-        self.num_features = num_features
-        self.affine = affine
-        self.eps = eps
-
-        if self.affine:
-            self.gamma = nn.Parameter(torch.Tensor(num_features).uniform_())
-            self.beta = nn.Parameter(torch.zeros(num_features))
-
-    def forward(self, x):
-        shape = [-1] + [1] * (x.dim() - 1)
-        # print(x.size())
-        if x.size(0) == 1:
-            # These two lines run much faster in pytorch 0.4 than the two lines listed below.
-            mean = x.view(-1).mean().view(*shape)
-            std = x.view(-1).std().view(*shape)
-        else:
-            mean = x.view(x.size(0), -1).mean(1).view(*shape)
-            std = x.view(x.size(0), -1).std(1).view(*shape)
-
-        x = (x - mean) / (std + self.eps)
-
-        if self.affine:
-            shape = [1, -1] + [1] * (x.dim() - 2)
-            x = x * self.gamma.view(*shape) + self.beta.view(*shape)
-        return x
 
