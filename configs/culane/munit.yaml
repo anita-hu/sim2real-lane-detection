@@ -52,6 +52,7 @@ dis:
   pad_type: reflect           # padding type [zero/reflect]
 lane:
   lr: 0.0004                  # initial learning rate
+  warmup_iters: 1.0e+6        # warm up iterations
   use_aux: True               # use segmentation loss [True/False]
   griding_num: 200            # number of column samples
   cls_num_per_lane: 18        # number of row anchors [TuSimple/WATO=56, CULane=18]

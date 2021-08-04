@@ -51,7 +51,7 @@ dis:
   pad_type: reflect           # padding type [zero/reflect]
 lane:
   lr: 0.001                   # initial learning rate
-  warmup_iters: 1e6           # warm up iterations
+  warmup_iters: 1.0e+6        # warm up iterations
   norm: bn                    # normalization layer [none/bn/in/ln]
   use_aux: True               # use segmentation loss [True/False]
   griding_num: 200            # number of column samples
