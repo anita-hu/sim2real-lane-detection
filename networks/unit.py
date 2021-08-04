@@ -7,6 +7,7 @@ from torch.autograd import Variable
 import torch
 from torch.cuda import amp
 import torch.nn.functional as F
+from torch.nn.parallel import DataParallel
 try:
     from itertools import izip as zip
 except ImportError: # will be 3.x series
@@ -21,7 +22,7 @@ from networks.norm import LayerNorm, AdaptiveInstanceNorm2d
 
 class MsImageDis(nn.Module):
     # Multi-scale discriminator architecture
-    def __init__(self, input_dim, params):
+    def __init__(self, input_dim, params, multi_gpu=False):
         super(MsImageDis, self).__init__()
         self.n_layer = params['n_layer']
         self.gan_type = params['gan_type']
@@ -34,7 +35,8 @@ class MsImageDis(nn.Module):
         self.downsample = nn.AvgPool2d(3, stride=2, padding=[1, 1], count_include_pad=False)
         self.cnns = nn.ModuleList()
         for _ in range(self.num_scales):
-            self.cnns.append(self._make_net())
+            cnn = DataParallel(self._make_net()) if multi_gpu else self._make_net()
+            self.cnns.append(cnn)
 
     def _make_net(self):
         dim = self.dim
@@ -92,7 +94,7 @@ class MsImageDis(nn.Module):
 
 class AdaINGen(nn.Module):
     # AdaIN auto-encoder architecture
-    def __init__(self, input_dim, params):
+    def __init__(self, input_dim, params, multi_gpu=False):
         super(AdaINGen, self).__init__()
         dim = params['dim']
         style_dim = params['style_dim']
@@ -114,6 +116,12 @@ class AdaINGen(nn.Module):
 
         # MLP to generate AdaIN parameters
         self.mlp = MLP(style_dim, self.get_num_adain_params(self.dec), mlp_dim, 3, norm='none', activ=activ)
+
+        if multi_gpu:
+            self.enc_style = DataParallel(self.enc_style)
+            self.enc_content = DataParallel(self.enc_content)
+            self.dec = DataParallel(self.dec)
+            self.mlp = DataParallel(self.mlp)
 
     def forward(self, images):
         # reconstruct an image
@@ -157,7 +165,7 @@ class AdaINGen(nn.Module):
 
 class VAEGen(nn.Module):
     # VAE architecture
-    def __init__(self, input_dim, params):
+    def __init__(self, input_dim, params, multi_gpu=False):
         super(VAEGen, self).__init__()
         # dim = params['dim']
         # n_downsample = params['n_downsample']
@@ -171,6 +179,10 @@ class VAEGen(nn.Module):
         self.dec = ResNetDec(nc=input_dim, norm=norm)
         # self.enc = ContentEncoder(n_downsample, n_res, input_dim, dim, 'in', activ, pad_type=pad_type, store_last_n=3)
         # self.dec = Decoder(n_downsample, n_res, self.enc.output_dim, input_dim, res_norm='in', activ=activ, pad_type=pad_type)
+
+        if multi_gpu:
+            self.enc = DataParallel(self.enc)
+            self.dec = DataParallel(self.dec)
 
     def forward(self, images):
         # This is a reduced VAE implementation where we assume the outputs are multivariate Gaussian distribution with

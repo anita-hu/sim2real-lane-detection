@@ -20,10 +20,14 @@ class UNIT_Trainer(nn.Module):
     def __init__(self, hyperparameters):
         super(UNIT_Trainer, self).__init__()
         # Initiate the networks
-        self.gen_a = VAEGen(hyperparameters['input_dim_a'], hyperparameters['gen'])  # auto-encoder for domain a
-        self.gen_b = VAEGen(hyperparameters['input_dim_b'], hyperparameters['gen'])  # auto-encoder for domain b
-        self.dis_a = MsImageDis(hyperparameters['input_dim_a'], hyperparameters['dis'])  # discriminator for domain a
-        self.dis_b = MsImageDis(hyperparameters['input_dim_b'], hyperparameters['dis'])  # discriminator for domain b
+        self.gen_a = VAEGen(hyperparameters['input_dim_a'], hyperparameters['gen'],
+                            multi_gpu=hyperparameters['multi_gpu'])  # auto-encoder for domain a
+        self.gen_b = VAEGen(hyperparameters['input_dim_b'], hyperparameters['gen'],
+                            multi_gpu=hyperparameters['multi_gpu'])  # auto-encoder for domain b
+        self.dis_a = MsImageDis(hyperparameters['input_dim_a'], hyperparameters['dis'],
+                                multi_gpu=hyperparameters['multi_gpu'])  # discriminator for domain a
+        self.dis_b = MsImageDis(hyperparameters['input_dim_b'], hyperparameters['dis'],
+                                multi_gpu=hyperparameters['multi_gpu'])  # discriminator for domain b
         self.instancenorm = nn.InstanceNorm2d(512, affine=False)
         input_size = (hyperparameters['input_height'], hyperparameters['input_width'])
         self.lane_model = UltraFastLaneDetector(hyperparameters['lane'], feature_dims=(128, 256, 512),
@@ -31,10 +35,6 @@ class UNIT_Trainer(nn.Module):
         self.lane_loss = UltraFastLaneDetectionLoss(hyperparameters['lane'])
 
         if hyperparameters['multi_gpu']:
-            self.gen_a = DataParallel(self.gen_a)
-            self.gen_b = DataParallel(self.gen_b)
-            self.dis_a = DataParallel(self.dis_a)
-            self.dis_b = DataParallel(self.dis_b)
             self.lane_model = DataParallel(self.lane_model)
 
         # Setup the optimizers

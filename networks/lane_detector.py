@@ -27,6 +27,7 @@ import torch
 import torchvision
 from torch import nn
 from networks.norm import LayerNorm
+from networks.resnet_autoencoder import BasicBlockEnc
 
 
 class Resnet(nn.Module):
@@ -95,9 +96,6 @@ class ConvNormRelu(nn.Module):
         x = self.norm(x)
         x = self.relu(x)
         return x
-
-
-from networks.resnet_autoencoder import BasicBlockEnc
 
 
 class UltraFastLaneDetector(nn.Module):
