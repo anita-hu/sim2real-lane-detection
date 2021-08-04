@@ -5,13 +5,14 @@ Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses
 TODO: Figure out license
 """
 from networks.unit import MsImageDis, VAEGen
-from networks.lane_detector import Resnet, UltraFastLaneDetector
+from networks.lane_detector import UltraFastLaneDetector
 from utils import weights_init, vgg_preprocess, load_vgg16, get_scheduler
 from lane_losses import UltraFastLaneDetectionLoss
 from lane_metrics import get_metric_dict, update_metrics, reset_metrics
 import torch
 import torch.nn as nn
 from torch.cuda import amp
+from torch.nn.parallel import DataParallel
 import os
 
 
@@ -28,6 +29,13 @@ class UNIT_Trainer(nn.Module):
         self.lane_model = UltraFastLaneDetector(hyperparameters['lane'], feature_dims=(128, 256, 512),
                                                 size=input_size)
         self.lane_loss = UltraFastLaneDetectionLoss(hyperparameters['lane'])
+
+        if hyperparameters['multi_gpu']:
+            self.gen_a = DataParallel(self.gen_a)
+            self.gen_b = DataParallel(self.gen_b)
+            self.dis_a = DataParallel(self.dis_a)
+            self.dis_b = DataParallel(self.dis_b)
+            self.lane_model = DataParallel(self.lane_model)
 
         # Setup the optimizers
         beta1 = hyperparameters['beta1']
@@ -67,6 +75,8 @@ class UNIT_Trainer(nn.Module):
             self.vgg.eval()
             for param in self.vgg.parameters():
                 param.requires_grad = False
+            if hyperparameters['multi_gpu']:
+                self.vgg = DataParallel(self.vgg)
 
         # Logging additional losses and metrics
         self.log_dict = {}  # updated per log iter

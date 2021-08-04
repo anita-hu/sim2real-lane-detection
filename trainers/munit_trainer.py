@@ -13,6 +13,7 @@ from torch.autograd import Variable
 import torch
 import torch.nn as nn
 from torch.cuda import amp
+from torch.nn.parallel import DataParallel
 import os
 
 
@@ -30,6 +31,13 @@ class MUNIT_Trainer(nn.Module):
         self.lane_model = UltraFastLaneDetector(hyperparameters['lane'], feature_dims=self.gen_a.enc_content.feature_dims,
                                                 size=input_size)
         self.lane_loss = UltraFastLaneDetectionLoss(hyperparameters['lane'])
+
+        if hyperparameters['multi_gpu']:
+            self.gen_a = DataParallel(self.gen_a)
+            self.gen_b = DataParallel(self.gen_b)
+            self.dis_a = DataParallel(self.dis_a)
+            self.dis_b = DataParallel(self.dis_b)
+            self.lane_model = DataParallel(self.lane_model)
 
         # fix the noise used in sampling
         display_size = int(hyperparameters['display_size'])
@@ -68,6 +76,8 @@ class MUNIT_Trainer(nn.Module):
             self.vgg.eval()
             for param in self.vgg.parameters():
                 param.requires_grad = False
+            if hyperparameters['multi_gpu']:
+                self.vgg = DataParallel(self.vgg)
 
         # Logging additional losses and metrics
         self.log_dict = {}  # updated per log iter

@@ -7,7 +7,6 @@ import argparse
 from tqdm import tqdm
 from trainers import MUNIT_Trainer, UNIT_Trainer, Baseline_Trainer
 import torch
-from torch.nn.parallel import DataParallel
 from data.dataloader import get_train_loader, get_test_loader
 from evaluation.eval_wrapper import eval_lane
 
@@ -75,8 +74,6 @@ elif config['trainer'] == 'Baseline':
 else:
     sys.exit("Only support MUNIT|UNIT|Baseline")
 
-if config['multi_gpu']:
-    trainer = DataParallel(trainer)
 trainer.cuda()
 
 if not baseline:
