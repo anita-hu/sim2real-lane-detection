@@ -101,13 +101,16 @@ class AdaINGen(nn.Module):
         activ = params['activ']
         pad_type = params['pad_type']
         mlp_dim = params['mlp_dim']
+        norm = params['norm']
 
         # style encoder
         self.enc_style = StyleEncoder(4, input_dim, dim, style_dim, norm='none', activ=activ, pad_type=pad_type)
 
         # content encoder
-        self.enc_content = ResNetEnc() # ContentEncoder(n_downsample, n_res, input_dim, dim, 'in', activ, pad_type=pad_type, store_last_n=3)
-        self.dec = ResNetDec() # Decoder(n_downsample, n_res, self.enc_content.output_dim, input_dim, res_norm='adain', activ=activ, pad_type=pad_type)
+        self.enc_content = ResNetEnc(nc=input_dim, norm=norm)
+        self.dec = ResNetDec(nc=input_dim, norm='adain')
+        # self.enc_content = ContentEncoder(n_downsample, n_res, input_dim, dim, 'in', activ, pad_type=pad_type, store_last_n=3)
+        # self.dec = Decoder(n_downsample, n_res, self.enc_content.output_dim, input_dim, res_norm='adain', activ=activ, pad_type=pad_type)
 
         # MLP to generate AdaIN parameters
         self.mlp = MLP(style_dim, self.get_num_adain_params(self.dec), mlp_dim, 3, norm='none', activ=activ)
@@ -161,13 +164,17 @@ class VAEGen(nn.Module):
         # n_res = params['n_res']
         # activ = params['activ']
         # pad_type = params['pad_type']
+        norm = params['norm']
 
         # content encoder
-        self.enc = ResNetEnc() # ContentEncoder(n_downsample, n_res, input_dim, dim, 'in', activ, pad_type=pad_type, store_last_n=3)
-        self.dec = ResNetDec() # Decoder(n_downsample, n_res, self.enc.output_dim, input_dim, res_norm='in', activ=activ, pad_type=pad_type)
+        self.enc = ResNetEnc(nc=input_dim, norm=norm)
+        self.dec = ResNetDec(nc=input_dim, norm=norm)
+        # self.enc = ContentEncoder(n_downsample, n_res, input_dim, dim, 'in', activ, pad_type=pad_type, store_last_n=3)
+        # self.dec = Decoder(n_downsample, n_res, self.enc.output_dim, input_dim, res_norm='in', activ=activ, pad_type=pad_type)
 
     def forward(self, images):
-        # This is a reduced VAE implementation where we assume the outputs are multivariate Gaussian distribution with mean = hiddens and std_dev = all ones.
+        # This is a reduced VAE implementation where we assume the outputs are multivariate Gaussian distribution with
+        # mean = hiddens and std_dev = all ones.
         hiddens = self.encode(images)
         if self.training == True:
             noise = Variable(torch.randn(hiddens.size()).cuda(hiddens.data.get_device()))
@@ -457,4 +464,3 @@ class Vgg16(nn.Module):
 
         return relu5_3
         # return [relu1_2, relu2_2, relu3_3, relu4_3]
-

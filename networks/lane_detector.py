@@ -26,6 +26,7 @@ import numpy as np
 import torch
 import torchvision
 from torch import nn
+from networks.norm import LayerNorm
 
 
 class Resnet(nn.Module):
@@ -73,17 +74,25 @@ class Resnet(nn.Module):
         return x2, x3, x4
 
 
-class ConvBnRelu(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, bias=False):
-        super(ConvBnRelu, self).__init__()
+class ConvNormRelu(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, bias=False, norm='bn'):
+        super(ConvNormRelu, self).__init__()
         self.conv = nn.Conv2d(in_channels, out_channels, kernel_size,
                               stride=stride, padding=padding, dilation=dilation, bias=bias)
-        self.bn = nn.BatchNorm2d(out_channels)
+        if norm == 'bn':
+            norm_layer = nn.BatchNorm2d
+        elif norm == 'in':
+            norm_layer = nn.InstanceNorm2d
+        elif norm == 'ln':
+            norm_layer = LayerNorm
+        else:
+            raise NotImplementedError("Unsupported normalization: {}".format(norm))
+        self.norm = norm_layer(out_channels)
         self.relu = nn.ReLU()
 
     def forward(self, x):
         x = self.conv(x)
-        x = self.bn(x)
+        x = self.norm(x)
         x = self.relu(x)
         return x
 
@@ -95,6 +104,7 @@ class UltraFastLaneDetector(nn.Module):
     def __init__(self, hyperparams, feature_dims=None, size=(288, 800), baseline=False):
         super(UltraFastLaneDetector, self).__init__()
 
+        norm = hyperparams["norm"]
         num_gridding = hyperparams["griding_num"]+1
         row_anchors = hyperparams["cls_num_per_lane"]
         num_lanes = hyperparams["num_lanes"]
@@ -107,32 +117,32 @@ class UltraFastLaneDetector(nn.Module):
         # output: (w+1) * sample_rows * 4
 
         if not baseline:
-            self.layer2 = nn.Sequential(BasicBlockEnc(128, 1))
-            self.layer3 = nn.Sequential(BasicBlockEnc(128, 2), BasicBlockEnc(256, 1),
-                                        BasicBlockEnc(256, 1))
-            self.layer4 = nn.Sequential(BasicBlockEnc(256, 2), BasicBlockEnc(512, 1))
+            self.layer2 = nn.Sequential(BasicBlockEnc(128, 1, norm=norm))
+            self.layer3 = nn.Sequential(BasicBlockEnc(128, 2, norm=norm), BasicBlockEnc(256, 1, norm=norm),
+                                        BasicBlockEnc(256, 1, norm=norm))
+            self.layer4 = nn.Sequential(BasicBlockEnc(256, 2, norm=norm), BasicBlockEnc(512, 1, norm=norm))
 
         if self.use_aux:
             self.aux_header2 = nn.Sequential(
-                ConvBnRelu(feature_dims[0], 128, kernel_size=3, stride=1, padding=1),
-                ConvBnRelu(128, 128, 3, padding=1),
-                ConvBnRelu(128, 128, 3, padding=1),
-                ConvBnRelu(128, 128, 3, padding=1),
+                ConvNormRelu(feature_dims[0], 128, kernel_size=3, stride=1, padding=1, norm=norm),
+                ConvNormRelu(128, 128, 3, padding=1, norm=norm),
+                ConvNormRelu(128, 128, 3, padding=1, norm=norm),
+                ConvNormRelu(128, 128, 3, padding=1, norm=norm),
             )
             self.aux_header3 = nn.Sequential(
-                ConvBnRelu(feature_dims[1], 128, kernel_size=3, stride=1, padding=1),
-                ConvBnRelu(128, 128, 3, padding=1),
-                ConvBnRelu(128, 128, 3, padding=1),
+                ConvNormRelu(feature_dims[1], 128, kernel_size=3, stride=1, padding=1, norm=norm),
+                ConvNormRelu(128, 128, 3, padding=1, norm=norm),
+                ConvNormRelu(128, 128, 3, padding=1, norm=norm),
             )
             self.aux_header4 = nn.Sequential(
-                ConvBnRelu(feature_dims[2], 128, kernel_size=3, stride=1, padding=1),
-                ConvBnRelu(128, 128, 3, padding=1),
+                ConvNormRelu(feature_dims[2], 128, kernel_size=3, stride=1, padding=1, norm=norm),
+                ConvNormRelu(128, 128, 3, padding=1, norm=norm),
             )
             self.aux_combine = nn.Sequential(
-                ConvBnRelu(384, 256, 3, padding=2, dilation=2),
-                ConvBnRelu(256, 128, 3, padding=2, dilation=2),
-                ConvBnRelu(128, 128, 3, padding=2, dilation=2),
-                ConvBnRelu(128, 128, 3, padding=4, dilation=4),
+                ConvNormRelu(384, 256, 3, padding=2, dilation=2, norm=norm),
+                ConvNormRelu(256, 128, 3, padding=2, dilation=2, norm=norm),
+                ConvNormRelu(128, 128, 3, padding=2, dilation=2, norm=norm),
+                ConvNormRelu(128, 128, 3, padding=4, dilation=4, norm=norm),
                 nn.Conv2d(128, self.cls_dim[-1] + 1, 1)
                 # output : n, num_of_lanes+1, h, w
             )

@@ -3,7 +3,6 @@ Copyright (C) 2018 NVIDIA Corporation.  All rights reserved.
 Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
 """
 from torch import nn
-from torch.autograd import Variable
 import torch
 import torch.nn.functional as F
 
@@ -56,7 +55,7 @@ class LayerNorm(nn.Module):
 
     def forward(self, x):
         shape = [-1] + [1] * (x.dim() - 1)
-        # print(x.size())
+
         if x.size(0) == 1:
         # These two lines run much faster in pytorch 0.4 than the two lines listed below.
             mean = x.view(-1).mean().view(*shape)
@@ -71,4 +70,3 @@ class LayerNorm(nn.Module):
             shape = [1, -1] + [1] * (x.dim() - 2)
             x = x * self.gamma.view(*shape) + self.beta.view(*shape)
         return x
-

@@ -13,9 +13,11 @@ weight_decay: 0.0001          # weight decay
 beta1: 0.5                    # Adam parameter
 beta2: 0.999                  # Adam parameter
 init: kaiming                 # initialization [gaussian/kaiming/xavier/orthogonal]
-lr_policy: step               # learning rate scheduler [constant/step/cos]
-step_size: 100000             # how often to decay learning rate
-gamma: 0.5                    # how much to decay learning rate
+lr_policy: cos                # learning rate scheduler [constant/step/cos]
+iter_per_epoch: 1634          # iterations per epoch
+gamma: 0.1                    # how much to decay learning rate
+warmup: linear                # warm up type
+warmup_iters: 0               # warm up iterations to use if not specified for each model
 gan_w: 1                      # weight of adversarial loss
 recon_x_w: 10                 # weight of image reconstruction loss
 recon_s_w: 1                  # weight of style reconstruction loss
@@ -32,6 +34,7 @@ trainer: MUNIT                # trainer [UNIT/MUNIT]
 gen:
   lr: 0.0001                  # initial learning rate
   dim: 64                     # number of filters in the bottommost layer
+  norm: bn                    # normalization layer [none/bn/in/ln/adain]
   mlp_dim: 256                # number of filters in MLP
   style_dim: 8                # length of style code
   activ: relu                 # activation function [relu/lrelu/prelu/selu/tanh]
@@ -49,6 +52,8 @@ dis:
   pad_type: reflect           # padding type [zero/reflect]
 lane:
   lr: 0.0004                  # initial learning rate
+  warmup_iters: 40000         # warm up iterations
+  norm: bn                    # normalization layer [none/bn/in/ln]
   use_aux: True               # use segmentation loss [True/False]
   griding_num: 100            # number of column samples
   cls_num_per_lane: 56        # number of row anchors [TuSimple/WATO=56, CULane=18]
@@ -59,8 +64,8 @@ lane:
 # data options
 input_dim_a: 3                # number of image channels [1/3]
 input_dim_b: 3                # number of image channels [1/3]
-input_height: 180             # resized image height
-input_width: 500              # resized image width
+input_height: 288             # resized image height
+input_width: 800              # resized image width
 
 # By convention, dataset A will be simulation, labelled data, while dataset B will be real-world without labels
 dataset: TuSimple                     # real-world dataset [CULane/TuSimple]

@@ -2,7 +2,7 @@
 # Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
 
 # logger options
-log_iter: 400                 # How often do you want to log loss and learning rate values during training
+log_iter: 1000                # How often do you want to log loss and learning rate values during training
 
 # optimization options
 max_epoch: 100                # maximum number of training epochs
@@ -12,7 +12,7 @@ beta1: 0.5                    # Adam parameter
 beta2: 0.999                  # Adam parameter
 lr: 0.001                     # initial learning rate
 lr_policy: multi              # learning rate scheduler [constant/step/cos/multi]
-iter_per_epoch: 817           # iterations per epoch
+iter_per_epoch: 2778          # iterations per epoch
 lr_steps: [25,38]             # epochs to step learning rate
 gamma: 0.1                    # how much to decay learning rate
 warmup: linear                # warm up type
@@ -25,6 +25,7 @@ trainer: Baseline             # trainer [UNIT/MUNIT/Baseline]
 lane:
   backbone: 18                # resnet backbone for baseline
   pretrained: False           # use pretrained resnet backbone
+  norm: bn                    # normalization layer [none/bn/in/ln]
   use_aux: True               # use segmentation loss [True/False]
   griding_num: 200            # number of column samples
   cls_num_per_lane: 18        # number of row anchors [TuSimple/WATO=56, CULane=18]

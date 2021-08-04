@@ -24,6 +24,7 @@ trainer: Baseline             # trainer [UNIT/MUNIT/Baseline]
 lane:
   backbone: 18                # resnet backbone for baseline
   pretrained: False           # use pretrained resnet backbone
+  norm: bn                    # normalization layer [none/bn/in/ln]
   use_aux: True               # use segmentation loss [True/False]
   griding_num: 100            # number of column samples
   cls_num_per_lane: 56        # number of row anchors [TuSimple/WATO=56, CULane=18]
