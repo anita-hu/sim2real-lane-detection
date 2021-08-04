@@ -111,7 +111,7 @@ class MUNIT_Trainer(nn.Module):
         reset_metrics(self.metric_dict_cyc)
 
     def _log_lane_metrics(self, metric_dict, preds, labels, postfix):
-        if self.lane_model.use_aux:
+        if isinstance(labels, tuple):
             cls_label, seg_label = labels
             cls_out, seg_out = preds
             results = {'cls_out': torch.argmax(cls_out, dim=1), 'cls_label': cls_label,
