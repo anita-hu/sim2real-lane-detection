@@ -5,6 +5,7 @@ import argparse
 import os
 import sys
 import torch
+from torch.nn.parallel import DataParallel
 from utils import get_config
 from trainers import MUNIT_Trainer, UNIT_Trainer, Baseline_Trainer
 from data.dataloader import get_test_loader
@@ -37,6 +38,9 @@ elif config['trainer'] == 'Baseline':
     trainer = Baseline_Trainer(config)
 else:
     sys.exit("Only support MUNIT|UNIT|Baseline")
+
+if config['multi_gpu']:
+    trainer = DataParallel(trainer)
 
 state_dict = torch.load(opts.checkpoint)
 # assume gen_a is for simulation data and gen_b is for real data

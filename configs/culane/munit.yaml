@@ -27,6 +27,7 @@ vgg_w: 1                      # weight of domain-invariant perceptual loss
 lane_w: 10                    # weight of lane detection loss
 lane_cyc_w: 10                # weight of cyclic lane detection loss
 mixed_precision: True         # use automatic mixed precision training
+multi_gpu: True               # use multi gpu training
 random_seed: 42
 
 # model options
@@ -42,7 +43,7 @@ gen:
   pad_type: reflect           # padding type [zero/reflect]
   store_last_n: 3             # features from last n layers for auxiliary branch of lane detector
 dis:
-  lr: 0.0001                  # initial learning rate
+  lr: 0.0004                  # initial learning rate
   dim: 64                     # number of filters in the bottommost layer
   norm: none                  # normalization layer [none/bn/in/ln]
   activ: lrelu                # activation function [relu/lrelu/prelu/selu/tanh]

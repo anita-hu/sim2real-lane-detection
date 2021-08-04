@@ -17,6 +17,7 @@ gamma: 0.1                    # how much to decay learning rate
 warmup: linear                # warm up type
 warmup_iters: 100             # warm up iterations
 mixed_precision: True         # use automatic mixed precision training
+multi_gpu: False              # use multi gpu training
 random_seed: 42
 
 # model options

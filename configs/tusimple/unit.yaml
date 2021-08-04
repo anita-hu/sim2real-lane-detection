@@ -28,6 +28,7 @@ vgg_w: 1                      # weight of domain-invariant perceptual loss
 lane_w: 10                    # weight of lane detection loss
 lane_cyc_w: 10                # weight of cyclic lane detection loss
 mixed_precision: True         # use automatic mixed precision training
+multi_gpu: False              # use multi gpu training
 random_seed: 42
 
 # model options
@@ -50,7 +51,7 @@ dis:
   num_scales: 3               # number of scales
   pad_type: reflect           # padding type [zero/reflect]
 lane:
-  lr: 0.001                  # initial learning rate
+  lr: 0.0004                  # initial learning rate
   warmup_iters: 40000         # warm up iterations
   norm: bn                    # normalization layer [none/bn/in/ln]
   use_aux: True               # use segmentation loss [True/False]
