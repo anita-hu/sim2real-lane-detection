@@ -2,7 +2,7 @@
 # Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
 
 # logger options
-log_iter: 400                 # How often do you want to log loss and learning rate values during training
+log_iter: 500                 # How often do you want to log loss and learning rate values during training
 image_save_epoch: 1           # How often do you want to save output images during training
 display_size: 4               # How many images do you want to display each time
 
