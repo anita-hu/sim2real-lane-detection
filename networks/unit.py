@@ -111,7 +111,7 @@ class AdaINGen(nn.Module):
         # content encoder
         self.enc_content = ResNetEnc(nc=input_dim, norm=norm)
         self.dec = ResNetDec(nc=input_dim, norm='adain')
-        # self.enc_content = ContentEncoder(n_downsample, n_res, input_dim, dim, 'in', activ, pad_type=pad_type, store_last_n=3)
+        # self.enc_content = ContentEncoder(n_downsample, n_res, input_dim, dim, 'in', activ, pad_type=pad_type)
         # self.dec = Decoder(n_downsample, n_res, self.enc_content.output_dim, input_dim, res_norm='adain', activ=activ, pad_type=pad_type)
 
         # MLP to generate AdaIN parameters
@@ -177,7 +177,7 @@ class VAEGen(nn.Module):
         # content encoder
         self.enc = ResNetEnc(nc=input_dim, norm=norm)
         self.dec = ResNetDec(nc=input_dim, norm=norm)
-        # self.enc = ContentEncoder(n_downsample, n_res, input_dim, dim, 'in', activ, pad_type=pad_type, store_last_n=3)
+        # self.enc = ContentEncoder(n_downsample, n_res, input_dim, dim, 'in', activ, pad_type=pad_type)
         # self.dec = Decoder(n_downsample, n_res, self.enc.output_dim, input_dim, res_norm='in', activ=activ, pad_type=pad_type)
 
         if multi_gpu:
@@ -228,7 +228,7 @@ class StyleEncoder(nn.Module):
         return self.model(x)
 
 class ContentEncoder(nn.Module):
-    def __init__(self, n_downsample, n_res, input_dim, dim, norm, activ, pad_type, store_last_n):
+    def __init__(self, n_downsample, n_res, input_dim, dim, norm, activ, pad_type):
         super(ContentEncoder, self).__init__()
         self.model = []
         self.model += [Conv2dBlock(input_dim, dim, 7, 1, 3, norm=norm, activation=activ, pad_type=pad_type)]
@@ -240,19 +240,10 @@ class ContentEncoder(nn.Module):
         self.model += [ResBlock(dim, norm=norm, activation=activ, pad_type=pad_type) for n in range(n_res)]
         self.model = nn.ModuleList(self.model)
         self.output_dim = dim
-        # store last n features for lane detector
-        self.feature_dims = []
-        self.store_last_n = store_last_n
-        for layer in self.model[-store_last_n:]:
-            self.feature_dims.append(layer.output_dim)
-        self.stored_features = None
 
     def forward(self, x):
-        self.stored_features = []
         for i, layer in enumerate(self.model):
             x = layer(x)
-            if i >= len(self.model) - self.store_last_n:
-                self.stored_features.append(x)
         return x
 
 class Decoder(nn.Module):

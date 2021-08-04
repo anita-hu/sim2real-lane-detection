@@ -99,8 +99,7 @@ class UNIT_Trainer(nn.Module):
     def eval_lanes(self, x):
         self.eval()
         h_b, _ = self.gen_b.encode(x)
-        fea = self.gen_b.enc.stored_features
-        preds = self.lane_model(fea)
+        preds = self.lane_model(h_b)
         self.train()
         return preds
 
@@ -146,8 +145,7 @@ class UNIT_Trainer(nn.Module):
             h_a, n_a = self.gen_a.encode(x_a)
             h_b, n_b = self.gen_b.encode(x_b)
             # lane detection (within domain)
-            fea_a = self.gen_a.enc.stored_features
-            pred_a = self.lane_model(fea_a)
+            pred_a = self.lane_model(h_a)
             # decode (within domain)
             x_a_recon = self.gen_a.decode(h_a + n_a)
             x_b_recon = self.gen_b.decode(h_b + n_b)
@@ -158,8 +156,7 @@ class UNIT_Trainer(nn.Module):
             h_b_recon, n_b_recon = self.gen_a.encode(x_ba)
             h_a_recon, n_a_recon = self.gen_b.encode(x_ab)
             # lane detection (cyclic)
-            fea_a_recon = self.gen_b.enc.stored_features
-            pred_a_cyc = self.lane_model(fea_a_recon)
+            pred_a_cyc = self.lane_model(h_a_recon)
             # decode again (if needed)
             x_aba = self.gen_a.decode(h_a_recon + n_a_recon) if hyperparameters['recon_x_cyc_w'] > 0 else None
             x_bab = self.gen_b.decode(h_b_recon + n_b_recon) if hyperparameters['recon_x_cyc_w'] > 0 else None

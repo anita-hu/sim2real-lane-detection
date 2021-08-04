@@ -32,7 +32,7 @@ class MUNIT_Trainer(nn.Module):
         self.instancenorm = nn.InstanceNorm2d(512, affine=False)
         self.style_dim = hyperparameters['gen']['style_dim']
         input_size = (hyperparameters['input_height'], hyperparameters['input_width'])
-        self.lane_model = UltraFastLaneDetector(hyperparameters['lane'], feature_dims=self.gen_a.enc_content.feature_dims,
+        self.lane_model = UltraFastLaneDetector(hyperparameters['lane'], feature_dims=(128, 256, 512),
                                                 size=input_size)
         self.lane_loss = UltraFastLaneDetectionLoss(hyperparameters['lane'])
 
@@ -102,8 +102,7 @@ class MUNIT_Trainer(nn.Module):
     def eval_lanes(self, x):
         self.eval()
         c_b, _ = self.gen_b.encode(x)
-        fea_b = self.gen_b.enc_content.stored_features
-        preds = self.lane_model(fea_b)
+        preds = self.lane_model(c_b)
         self.train()
         return preds
 
@@ -141,8 +140,7 @@ class MUNIT_Trainer(nn.Module):
             c_a, s_a_prime = self.gen_a.encode(x_a)
             c_b, s_b_prime = self.gen_b.encode(x_b)
             # lane detection (within domain)
-            fea_a = self.gen_a.enc_content.stored_features
-            pred_a = self.lane_model(fea_a)
+            pred_a = self.lane_model(c_a)
             # decode (within domain)
             x_a_recon = self.gen_a.decode(c_a, s_a_prime)
             x_b_recon = self.gen_b.decode(c_b, s_b_prime)
@@ -153,8 +151,7 @@ class MUNIT_Trainer(nn.Module):
             c_b_recon, s_a_recon = self.gen_a.encode(x_ba)
             c_a_recon, s_b_recon = self.gen_b.encode(x_ab)
             # lane detection (cyclic)
-            fea_a_recon = self.gen_b.enc_content.stored_features
-            pred_a_cyc = self.lane_model(fea_a_recon)
+            pred_a_cyc = self.lane_model(c_a_recon)
             # decode again (if needed)
             x_aba = self.gen_a.decode(c_a_recon, s_a_prime) if hyperparameters['recon_x_cyc_w'] > 0 else None
             x_bab = self.gen_b.decode(c_b_recon, s_b_prime) if hyperparameters['recon_x_cyc_w'] > 0 else None

@@ -106,7 +106,6 @@ class ResNetEnc(nn.Module):
         self.layer2 = self._make_layer(BasicBlockEnc, 128, num_blocks[1], stride=2, norm=norm)
         # self.layer3 = self._make_layer(BasicBlockEnc, 256, num_blocks[2], stride=2, norm=norm)
         # self.layer4 = self._make_layer(BasicBlockEnc, 512, num_blocks[3], stride=2, norm=norm)
-        self.stored_features = None
 
     def _make_layer(self, BasicBlockEnc, planes, num_blocks, stride, norm):
         strides = [stride] + [1] * (num_blocks - 1)
@@ -122,7 +121,6 @@ class ResNetEnc(nn.Module):
         x2 = self.layer2(x)
         # x3 = self.layer3(x2)
         # x4 = self.layer4(x3)
-        self.stored_features = x2  # (x2, x3, x4)
         return x2
 
 
