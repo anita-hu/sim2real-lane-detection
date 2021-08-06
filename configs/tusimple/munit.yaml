@@ -23,7 +23,7 @@ recon_x_w: 10                 # weight of image reconstruction loss
 recon_s_w: 1                  # weight of style reconstruction loss
 recon_c_w: 1                  # weight of content reconstruction loss
 recon_x_cyc_w: 10             # weight of explicit style augmented cycle consistency loss
-vgg_w: 1                      # weight of domain-invariant perceptual loss
+vgg_w: 0                      # weight of domain-invariant perceptual loss
 lane_w: 10                    # weight of lane detection loss
 lane_cyc_w: 10                # weight of cyclic lane detection loss
 mixed_precision: True         # use automatic mixed precision training
@@ -36,6 +36,7 @@ gen:
   lr: 0.0001                  # initial learning rate
   dim: 64                     # number of filters in the bottommost layer
   norm: bn                    # normalization layer [none/bn/in/ln/adain]
+  n_mlp_blocks: 2             # number of blocks in MLP
   mlp_dim: 256                # number of filters in MLP
   style_dim: 8                # length of style code
   activ: relu                 # activation function [relu/lrelu/prelu/selu/tanh]

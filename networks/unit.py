@@ -104,6 +104,7 @@ class AdaINGen(nn.Module):
         pad_type = params['pad_type']
         mlp_dim = params['mlp_dim']
         norm = params['norm']
+        n_blocks = params['n_mlp_blocks']
 
         # style encoder
         self.enc_style = StyleEncoder(4, input_dim, dim, style_dim, norm='none', activ=activ, pad_type=pad_type)
@@ -115,7 +116,7 @@ class AdaINGen(nn.Module):
         # self.dec = Decoder(n_downsample, n_res, self.enc_content.output_dim, input_dim, res_norm='adain', activ=activ, pad_type=pad_type)
 
         # MLP to generate AdaIN parameters
-        self.mlp = MLP(style_dim, self.get_num_adain_params(self.dec), mlp_dim, 3, norm='none', activ=activ)
+        self.mlp = MLP(style_dim, self.get_num_adain_params(self.dec), mlp_dim, n_blocks, norm='none', activ=activ)
 
         if multi_gpu:
             self.enc_style = DataParallel(self.enc_style)

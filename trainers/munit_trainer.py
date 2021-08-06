@@ -58,8 +58,14 @@ class MUNIT_Trainer(nn.Module):
         lr = hyperparameters['lane']['lr']
         self.lane_opt = torch.optim.Adam([p for p in self.lane_model.parameters() if p.requires_grad],
                                          lr=lr, betas=(beta1, beta2), weight_decay=hyperparameters['weight_decay'])
+        if 'warmup_iters' in hyperparameters['dis']:
+            hyperparameters['warmup_iters'] = hyperparameters['dis']['warmup_iters']
         self.dis_scheduler = get_scheduler(self.dis_opt, hyperparameters)
+        if 'warmup_iters' in hyperparameters['gen']:
+            hyperparameters['warmup_iters'] = hyperparameters['gen']['warmup_iters']
         self.gen_scheduler = get_scheduler(self.gen_opt, hyperparameters)
+        if 'warmup_iters' in hyperparameters['lane']:
+            hyperparameters['warmup_iters'] = hyperparameters['lane']['warmup_iters']
         self.lane_scheduler = get_scheduler(self.lane_opt, hyperparameters)
 
         # Mixed precision training
