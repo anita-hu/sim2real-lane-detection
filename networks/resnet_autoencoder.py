@@ -2,7 +2,7 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-from networks.norm import LayerNorm, AdaptiveInstanceNorm2d
+from networks.norm import LayerNorm, AdaptiveInstanceNorm2d, NoneNorm
 
 
 class ResizeConv2d(nn.Module):
@@ -32,6 +32,8 @@ class BasicBlockEnc(nn.Module):
             norm_layer = LayerNorm
         elif norm == 'adain':
             norm_layer = AdaptiveInstanceNorm2d
+        elif norm == 'none':
+            norm_layer = NoneNorm
         else:
             raise NotImplementedError("Unsupported normalization: {}".format(norm))
         
@@ -70,6 +72,8 @@ class BasicBlockDec(nn.Module):
             norm_layer = LayerNorm
         elif norm == 'adain':
             norm_layer = AdaptiveInstanceNorm2d
+        elif norm == 'none':
+            norm_layer = NoneNorm
         else:
             raise NotImplementedError("Unsupported normalization: {}".format(norm))
         

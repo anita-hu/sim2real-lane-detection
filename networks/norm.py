@@ -70,3 +70,11 @@ class LayerNorm(nn.Module):
             shape = [1, -1] + [1] * (x.dim() - 2)
             x = x * self.gamma.view(*shape) + self.beta.view(*shape)
         return x
+
+
+class NoneNorm(nn.Module):
+    def __init__(self, num_features):
+        super(NoneNorm, self).__init__()
+
+    def forward(self, x):
+        return x

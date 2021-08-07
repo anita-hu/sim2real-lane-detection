@@ -23,7 +23,7 @@ recon_x_w: 10                 # weight of image reconstruction loss
 recon_s_w: 1                  # weight of style reconstruction loss
 recon_c_w: 1                  # weight of content reconstruction loss
 recon_x_cyc_w: 10             # weight of explicit style augmented cycle consistency loss
-vgg_w: 0                      # weight of domain-invariant perceptual loss
+vgg_w: 1                      # weight of domain-invariant perceptual loss
 lane_w: 10                    # weight of lane detection loss
 lane_cyc_w: 10                # weight of cyclic lane detection loss
 mixed_precision: True         # use automatic mixed precision training
@@ -53,7 +53,7 @@ dis:
   num_scales: 3               # number of scales
   pad_type: reflect           # padding type [zero/reflect]
 lane:
-  lr: 0.0004                  # initial learning rate
+  lr: 0.0001                  # initial learning rate
   warmup_iters: 40000         # warm up iterations
   norm: bn                    # normalization layer [none/bn/in/ln]
   use_aux: True               # use segmentation loss [True/False]
