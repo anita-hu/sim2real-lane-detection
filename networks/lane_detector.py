@@ -83,12 +83,18 @@ class UltraFastLaneDetector(nn.Module):
         norm = hyperparams["norm"]
         activ = hyperparams["activ"]
         num_gridding = hyperparams["griding_num"]+1
-        row_anchors = hyperparams["cls_num_per_lane"]
+        row_anchors = hyperparams["num_anchors"]
         num_lanes = hyperparams["num_lanes"]
-        self.cls_dim = (num_gridding, row_anchors, num_lanes)
+        num_classes = hyperparams["num_classes"]
+        self.det_dim = (num_gridding, row_anchors, num_lanes)
+        self.cls_dim = (num_classes, num_lanes)
         self.use_aux = hyperparams["use_aux"]
-        self.total_dim = int(np.prod(self.cls_dim))
+        self.use_cls = hyperparams["use_cls"]
+        self.det_fc_size = hyperparams["det_fc_size"]
         self.baseline = baseline
+
+        self.total_det_dim = int(np.prod(self.det_dim))
+        self.total_cls_dim = int(np.prod(self.cls_dim))
 
         # input : nchw,
         # output: (w+1) * sample_rows * 4
@@ -125,20 +131,29 @@ class UltraFastLaneDetector(nn.Module):
                 Conv2dBlock(256, 128, 3, stride=1, padding=2, dilation=2, activation=activ, norm=norm, use_bias=False),
                 Conv2dBlock(128, 128, 3, stride=1, padding=2, dilation=2, activation=activ, norm=norm, use_bias=False),
                 Conv2dBlock(128, 128, 3, stride=1, padding=4, dilation=4, activation=activ, norm=norm, use_bias=False),
-                nn.Conv2d(128, self.cls_dim[-1] + 1, 1)
+                nn.Conv2d(128, self.det_dim[-1] + 1, 1)
                 # output : n, num_of_lanes+1, h, w
             )
             initialize_weights(self.aux_header2, self.aux_header3, self.aux_header4, self.aux_combine)
 
         self.pool = nn.Conv2d(feature_dims[2], 8, 1)
 
-        self.cls_in = int(size[0]/16*size[1]/16*8) if not baseline else int(size[0]/32*size[1]/32*8)
-        self.cls = nn.Sequential(
-            nn.Linear(self.cls_in, 2048),
+        self.fea_in = int(size[0]/16*size[1]/16*8) if not baseline else int(size[0]/32*size[1]/32*8)
+        self.det = nn.Sequential(
+            nn.Linear(self.fea_in, self.det_fc_size),
             nn.ReLU(),
-            nn.Linear(2048, self.total_dim),
+            nn.Linear(self.det_fc_size, self.total_dim),
         )
-        initialize_weights(self.cls)
+        initialize_weights(self.det)
+
+        if self.use_cls:
+            self.cls_fc_size = hyperparams["cls_fc_size"]
+            self.cls = torch.nn.Sequential(
+                torch.nn.Linear(self.fea_in, self.cls_fc_size),
+                torch.nn.ReLU(),
+                torch.nn.Linear(self.cls_fc_size, self.total_cls_dim),
+            )
+            initialize_weights(self.cls)
 
     def forward(self, x):
         if self.baseline:
@@ -148,6 +163,7 @@ class UltraFastLaneDetector(nn.Module):
             x3 = self.layer3(x2)
             fea = self.layer4(x3)
 
+        aux_seg = None
         if self.use_aux:
             x2 = self.aux_header2(x2)
             x3 = self.aux_header3(x3)
@@ -156,16 +172,15 @@ class UltraFastLaneDetector(nn.Module):
             x4 = F.interpolate(x4, scale_factor=4, mode='bilinear')
             aux_seg = torch.cat([x2, x3, x4], dim=1)
             aux_seg = self.aux_combine(aux_seg)
-        else:
-            aux_seg = None
 
-        fea = self.pool(fea).view(-1, self.cls_in)
-        group_cls = self.cls(fea).view(-1, *self.cls_dim)
+        fea = self.pool(fea).view(-1, self.fea_in)
+        group_det = self.det(fea).view(-1, *self.det_dim)
 
-        if self.use_aux:
-            return group_cls, aux_seg
+        group_cls = None
+        if self.use_cls:
+            group_cls = self.cls(fea).view(-1, *self.cls_dim)
 
-        return group_cls
+        return group_det, group_cls, aux_seg
 
 
 def initialize_weights(*models):

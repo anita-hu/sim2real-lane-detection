@@ -61,15 +61,20 @@ if distributed:
 
 print('Start testing...')
 
-if config['dataset'] == 'CULane':
-    cls_num_per_lane = 18
-elif config['dataset'] == 'TuSimple':
-    cls_num_per_lane = 56
+if config['datasetB'] == 'CULane':
+    num_anchors = 18
+elif config['datasetB'] == 'TuSimple':
+    num_anchors = 56
 else:
     raise NotImplementedError("Only support CULane|TuSimple")
 
-loader = get_test_loader(batch_size=config["batch_size"], data_root=config["dataB_root"], distributed=False,
-                         image_dim=(config["input_height"], config["input_width"]))
+loader = get_test_loader(
+    batch_size=config["batch_size"],
+    data_root=config["dataB_root"],
+    distributed=False, 
+    use_cls=config["lane"]["use_cls"],
+    image_dim=(config["input_height"], config["input_width"])
+)
 
 if distributed:
     net = torch.nn.parallel.DistributedDataParallel(trainer, device_ids=[opts.local_rank])
@@ -77,5 +82,12 @@ if distributed:
 if not os.path.exists(opts.output_folder):
     os.mkdir(opts.output_folder)
 
-eval_lane(trainer, config['dataset'], config['dataB_root'], loader, opts.output_folder, config['lane']['griding_num'],
-          False)
+eval_lane(
+    net=trainer,
+    dataset=config['dataset'],
+    data_root=config['dataB_root'],
+    loader=loader,
+    work_dir=opts.output_folder,
+    griding_num=config['lane']['griding_num'],
+    use_cls=config["lane"]["use_cls"]
+)

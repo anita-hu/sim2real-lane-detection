@@ -8,6 +8,7 @@ from tqdm import tqdm
 from trainers import MUNIT_Trainer, UNIT_Trainer, Baseline_Trainer, ADA_Trainer
 import torch
 from data.dataloader import get_train_loader, get_test_loader
+from data.constants import wato2tusimple_class_mapping
 from evaluation.eval_wrapper import eval_lane
 
 try:
@@ -43,26 +44,52 @@ wandb.init(entity=opts.entity, project=opts.project, config=config)
 torch.manual_seed(config["random_seed"])
 torch.backends.cudnn.deterministic = True
 
+# Only map classes when using TuSimple
+if config["dataset"] == "TuSimple" and config["lane"]["use_cls"]:
+    cls_map = wato2tusimple_class_mapping
+else:
+    cls_map = None
+
 # Setup data loaders
 # NOTE: By convention, dataset A will be simulation, labelled data, while dataset B will be real-world without labels
 print(f"Loading dataset A (labelled, simulated) from {config['dataA_root']}")
-train_loader_a = get_train_loader(config["batch_size"], config["dataA_root"],
-                                  griding_num=config["lane"]["griding_num"], dataset=config["dataset"],
-                                  use_aux=config["lane"]["use_aux"], distributed=False,
-                                  num_lanes=config["lane"]["num_lanes"], baseline=baseline,
-                                  image_dim=(config["input_height"], config["input_width"]),
-                                  return_label=True)
+train_loader_a = get_train_loader(
+    config["batch_size"],
+    config["dataA_root"],
+    griding_num=config["lane"]["griding_num"],
+    dataset=config["dataset"],
+    use_aux=config["lane"]["use_aux"],
+    distributed=False,
+    num_lanes=config["lane"]["num_lanes"],
+    use_cls=config["lane"]["use_cls"],
+    baseline=baseline,
+    image_dim=(config["input_height"], config["input_width"]),
+    return_label=True,
+    cls_map=cls_map
+)
 
 print(f"Loading dataset B (unlabelled, real-world) from {config['dataB_root']}")
-train_loader_b = get_train_loader(config["batch_size"], config["dataB_root"],
-                                  griding_num=config["lane"]["griding_num"], dataset=config["dataset"],
-                                  use_aux=config["lane"]["use_aux"], distributed=False,
-                                  num_lanes=config["lane"]["num_lanes"], baseline=baseline,
-                                  image_dim=(config["input_height"], config["input_width"]))
+train_loader_b = get_train_loader(
+    config["batch_size"],
+    config["dataB_root"],
+    griding_num=config["lane"]["griding_num"],
+    dataset=config["dataset"],
+    use_aux=config["lane"]["use_aux"],
+    distributed=False,
+    num_lanes=config["lane"]["num_lanes"],
+    use_cls=config["lane"]["use_cls"],
+    baseline=baseline,
+    image_dim=(config["input_height"], config["input_width"])
+)
 
-val_loader_b = get_test_loader(batch_size=config["batch_size"], data_root=config["dataB_root"],
-                               distributed=False, image_dim=(config["input_height"], config["input_width"]),
-                               partition="val")
+val_loader_b = get_test_loader(
+    batch_size=config["batch_size"],
+    data_root=config["dataB_root"],
+    distributed=False,
+    use_cls=config["lane"]["use_cls"],
+    image_dim=(config["input_height"], config["input_width"]),
+    partition="val"
+)
 
 # Setup model
 print(f"Loading {config['trainer']} trainer")
@@ -100,15 +127,15 @@ iterations = start_epoch * iter_per_epoch if opts.resume else 0
 for epoch in range(start_epoch, config['max_epoch']):
     print("Training epoch", epoch + 1)
     for image_label_a, image_b in tqdm(zip(train_loader_a, train_loader_b), total=iter_per_epoch):
-        if config["lane"]["use_aux"]:
-            images_a, cls_label, seg_label = image_label_a
-            images_a = images_a.cuda().detach()
-            label_a = (cls_label.long().cuda().detach(), seg_label.long().cuda().detach())
-        else:
-            images_a, cls_label = image_label_a
-            images_a, label_a = images_a.cuda(), cls_label.long().cuda()
+        images_a, det_label, cls_label, seg_label = image_label_a
 
-        images_b = image_b.cuda().detach()
+        images_a = images_a.cuda()
+        images_b = image_b.cuda()
+
+        det_label = det_label.long().cuda()
+        cls_label = cls_label.long().cuda() if config["lane"]["use_cls"] else cls_label
+        seg_label = seg_label.long().cuda() if config["lane"]["use_aux"] else seg_label
+        label_a = (det_label, cls_label, seg_label)
 
         # Main training code
         trainer.dis_update(images_a, images_b, config)
@@ -131,6 +158,8 @@ for epoch in range(start_epoch, config['max_epoch']):
 
         trainer.update_learning_rate()
         iterations += 1
+        if iterations == 20:
+            break
 
     # Write train metrics
     log_dict = trainer.metric_log_dict
@@ -149,8 +178,8 @@ for epoch in range(start_epoch, config['max_epoch']):
     print("Validating epoch", epoch + 1)
     with Timer("Elapsed time in validation: %f"):
         log_dict, val_metric = eval_lane(trainer, config['dataset'], config['dataB_root'], val_loader_b,
-                                         output_directory, config['lane']['griding_num'], config['lane']['use_aux'],
-                                         "val")
+                                         output_directory, config['lane']['griding_num'],
+                                         config['lane']['use_cls'], "val")
 
     log_dict["epoch"] = epoch + 1
     wandb.log(log_dict, step=iterations)

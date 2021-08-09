@@ -26,20 +26,36 @@ import torch
 
 
 def get_metric_dict(hyperparameters):
-    if hyperparameters["use_aux"]:
+    if hyperparameters["use_aux"] and hyperparameters["use_cls"]:
+        metric_dict = {
+            'name': ['top1', 'top2', 'top3', 'cls_acc', 'iou'],
+            'op': [MultiLabelAcc(), AccTopk(hyperparameters["griding_num"], 2),
+                   AccTopk(hyperparameters["griding_num"], 3), ClassAcc(), Metric_mIoU(hyperparameters["num_lanes"] + 1)],
+            'data_src': [('det_out', 'det_label'), ('det_out', 'det_label'), ('det_out', 'det_label'),
+                         ('cls_out', 'cls_label'), ('seg_out', 'seg_label')]
+        }
+    elif hyperparameters["use_aux"]:
         metric_dict = {
             'name': ['top1', 'top2', 'top3', 'iou'],
             'op': [MultiLabelAcc(), AccTopk(hyperparameters["griding_num"], 2),
                    AccTopk(hyperparameters["griding_num"], 3), Metric_mIoU(hyperparameters["num_lanes"] + 1)],
-            'data_src': [('cls_out', 'cls_label'), ('cls_out', 'cls_label'), ('cls_out', 'cls_label'),
+            'data_src': [('det_out', 'det_label'), ('det_out', 'det_label'), ('det_out', 'det_label'),
                          ('seg_out', 'seg_label')]
+        }
+    elif hyperparameters["use_cls"]:
+        metric_dict = {
+            'name': ['top1', 'top2', 'top3', 'cls_acc'],
+            'op': [MultiLabelAcc(), AccTopk(hyperparameters["griding_num"], 2),
+                   AccTopk(hyperparameters["griding_num"], 3), ClassAcc()],
+            'data_src': [('det_out', 'det_label'), ('det_out', 'det_label'), ('det_out', 'det_label'),
+                         ('cls_out', 'cls_label')]
         }
     else:
         metric_dict = {
             'name': ['top1', 'top2', 'top3'],
             'op': [MultiLabelAcc(), AccTopk(hyperparameters["griding_num"], 2),
                    AccTopk(hyperparameters["griding_num"], 3)],
-            'data_src': [('cls_out', 'cls_label'), ('cls_out', 'cls_label'), ('cls_out', 'cls_label')]
+            'data_src': [('det_out', 'det_label'), ('det_out', 'det_label'), ('det_out', 'det_label')]
         }
 
     return metric_dict
@@ -129,6 +145,29 @@ class AccTopk:
 
     def get(self):
         return self.top5_correct * 1.0 / self.cnt
+
+
+class ClassAcc:
+    def __init__(self):
+        self.cnt = 0
+        self.num_true = 0
+        self.num_false = 0
+
+    def reset(self):
+        self.cnt = 0
+        self.num_true = 0
+        self.num_false = 0
+
+    def update(self, predict, target):
+        # ('cls_out', 'cls_label') both (batch_size, num_lanes)
+        tp_tn = torch.sum(predict == target)
+        total = torch.numel(target)
+        self.num_true += tp_tn
+        self.cnt += total
+        self.num_false += total - tp_tn
+
+    def get(self):
+        return self.num_true / (self.num_true + self.num_false)
 
 
 def update_metrics(metric_dict, pair_data):

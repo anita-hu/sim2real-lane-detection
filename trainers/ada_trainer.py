@@ -79,15 +79,20 @@ class ADA_Trainer(nn.Module):
         reset_metrics(self.metric_dict)
 
     def _log_lane_metrics(self, metric_dict, preds, labels, postfix):
-        if isinstance(labels, tuple):
-            cls_label, seg_label = labels
-            cls_out, seg_out = preds
-            results = {'cls_out': torch.argmax(cls_out, dim=1), 'cls_label': cls_label,
+        det_label, cls_label, seg_label = labels
+        det_out, cls_out, seg_out = preds
+        if cls_out is not None and seg_out is not None:
+            results = {'det_out': torch.argmax(det_out, dim=1), 'det_label': det_label,
+                       'seg_out': torch.argmax(seg_out, dim=1), 'seg_label': seg_label,
+                       'cls_out': torch.argmax(cls_out, dim=1), 'cls_label': cls_label}
+        elif seg_out is not None:
+            results = {'det_out': torch.argmax(det_out, dim=1), 'det_label': det_label,
                        'seg_out': torch.argmax(seg_out, dim=1), 'seg_label': seg_label}
+        elif cls_out is not None:
+            results = {'det_out': torch.argmax(det_out, dim=1), 'det_label': det_label,
+                       'cls_out': torch.argmax(cls_out, dim=1), 'cls_label': cls_label}
         else:
-            cls_label = labels
-            cls_out = preds
-            results = {'cls_out': torch.argmax(cls_out, dim=1), 'cls_label': cls_label}
+            results = {'det_out': torch.argmax(det_out, dim=1), 'det_label': det_label}
 
         update_metrics(metric_dict, results)
         for me_name, me_op in zip(metric_dict['name'], metric_dict['op']):
