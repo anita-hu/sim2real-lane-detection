@@ -44,7 +44,7 @@ gen:
   n_res: 4                    # number of residual blocks in content encoder/decoder
   pad_type: reflect           # padding type [zero/reflect]
 dis:
-  lr: 0.0004                  # initial learning rate
+  lr: 0.0002                  # initial learning rate
   dim: 64                     # number of filters in the bottommost layer
   norm: none                  # normalization layer [none/bn/in/ln]
   activ: lrelu                # activation function [relu/lrelu/prelu/selu/tanh]
