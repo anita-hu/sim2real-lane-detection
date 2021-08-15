@@ -206,7 +206,8 @@ def generate_segmentation_and_train_list(root, line_txt, names, classes, image_s
         if i in val_idx:
             val_names.write(names[i] + ' ' + ' '.join(list(map(str, class_label))) + '\n')
         else:
-            train_gt_fp.write(names[i] + ' ' + label_path + ' ' + ' '.join(list(map(str, bin_label))) + ' ' + ' '.join(list(map(str, class_label))) + '\n')
+            train_gt_fp.write(names[i] + ' ' + label_path + ' ' + ' '.join(list(map(str, bin_label))) + ' ' + ' '.join(
+                list(map(str, class_label))) + '\n')
 
     train_gt_fp.close()
     if num_val > 0:
@@ -248,8 +249,8 @@ if __name__ == "__main__":
     else:
         # training set
         names, line_txt, classes, label_json_all = get_tusimple_list(args.root, ['label_data_0601_withclasses.json',
-                                                                        'label_data_0531_withclasses.json',
-                                                                        'label_data_0313_withclasses.json'])
+                                                                                 'label_data_0531_withclasses.json',
+                                                                                 'label_data_0313_withclasses.json'])
 
         # generate segmentation and training list for training
         val_idx = generate_segmentation_and_train_list(args.root, line_txt, names, classes, num_val=358)

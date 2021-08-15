@@ -150,16 +150,14 @@ for epoch in range(start_epoch, config['max_epoch']):
             write_loss(iterations + 1, trainer)
 
             if trainer.dis_scheduler is not None:
-                wandb.log({"dis_lr": trainer.dis_scheduler.get_last_lr()[0]}, step=(iterations + 1))
+                wandb.log({"lr/dis_lr": trainer.dis_scheduler.get_last_lr()[0]}, step=(iterations + 1))
             if trainer.gen_scheduler is not None:
-                wandb.log({"gen_lr": trainer.gen_scheduler.get_last_lr()[0]}, step=(iterations + 1))
+                wandb.log({"lr/gen_lr": trainer.gen_scheduler.get_last_lr()[0]}, step=(iterations + 1))
             if trainer.lane_scheduler is not None:
-                wandb.log({"lane_lr": trainer.lane_scheduler.get_last_lr()[0]}, step=(iterations + 1))
+                wandb.log({"lr/lane_lr": trainer.lane_scheduler.get_last_lr()[0]}, step=(iterations + 1))
 
         trainer.update_learning_rate()
         iterations += 1
-        if iterations == 20:
-            break
 
     # Write train metrics
     log_dict = trainer.metric_log_dict

@@ -37,7 +37,11 @@ $WATOROOT
 ```
 
 ### TuSimple Class Label Setup
-To setup the TuSimple dataset with classes, download the json files from the [Google drive](https://drive.google.com/drive/folders/1sMA7pdknqwRunami5ZWdmZlAsSoM44Cv?usp=sharing) and place them in the TuSimple root folder. The class labels were downloaded from this (repo)[https://github.com/fabvio/TuSimple-lane-classes] and converted to json using the given converter script.
+To setup the TuSimple dataset with classes, download the json files from this 
+[Google Drive](https://drive.google.com/drive/folders/1sMA7pdknqwRunami5ZWdmZlAsSoM44Cv?usp=sharing) 
+and place them in the TuSimple root folder. The class labels were downloaded from 
+[TuSimple-lane-classes](https://github.com/fabvio/TuSimple-lane-classes) and converted to json using the given 
+converter script.
 
 ### TuSimple/WATO Format Conversion
 

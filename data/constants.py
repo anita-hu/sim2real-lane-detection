@@ -29,19 +29,19 @@ classes = {
 }
 
 wato2tusimple_class_mapping = {
-    0: 0, # no lane
-    1: 3, # dashed
-    2: 3, # dashed
-    3: 2, # continuous white
-    4: 1, # continuous yellow
-    5: 4, # double dashed
-    6: 4, # double dashed
-    7: 7, # unknown
-    8: 6, # double continuous yellow
-    9: 4, # double dashed
-    10: 4, # double dashed
-    11: 4, # double dashed
-    12: 4, # double dashed
-    13: 5, # Botts' dots
-    14: 7 # unknown
+    0: 0,  # no lane
+    1: 3,  # dashed
+    2: 3,  # dashed
+    3: 2,  # continuous white
+    4: 1,  # continuous yellow
+    5: 4,  # double dashed
+    6: 4,  # double dashed
+    7: 6,  # double continuous yellow
+    8: 6,  # double continuous yellow
+    9: 4,  # double dashed
+    10: 4,  # double dashed
+    11: 4,  # double dashed
+    12: 4,  # double dashed
+    13: 5,  # Botts' dots
+    14: 7  # unknown
 }

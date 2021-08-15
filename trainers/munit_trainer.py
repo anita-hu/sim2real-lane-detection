@@ -134,11 +134,11 @@ class MUNIT_Trainer(nn.Module):
 
         update_metrics(metric_dict, results)
         for me_name, me_op in zip(metric_dict['name'], metric_dict['op']):
-            self.metric_log_dict[f"lane_metric_{me_name}_{postfix}"] = me_op.get()
+            self.metric_log_dict[f"eval_metrics/lane_metric_{me_name}_{postfix}"] = me_op.get()
 
     def _log_lane_losses(self, postfix):
         for k, v in self.lane_loss.current_losses.items():
-            self.log_dict[f"lane_{k}_{postfix}"] = v
+            self.log_dict[f"lane_loss/lane_{k}_{postfix}"] = v
 
     def gen_update(self, x_a, x_b, y_a, hyperparameters):
         # assume x_a from simulation data with labels y_a and x_b from real data

@@ -166,7 +166,8 @@ def eval_lane(net, dataset, data_root, loader, work_dir, griding_num, use_cls, p
             R = TP * 1.0 / (TP + FN)  # Recall
             F = 2 * P * R / (P + R) if (P + R) > 0 else 0  # F1, set to zero to avoid division by zero
             dist_print("F1 score", F)
-            log_dict = {f"{partition}_f1": F, f"{partition}_precision": P, f"{partition}_recall": R}
+            log_dict = {f"eval_metrics/{partition}_f1": F, f"eval_metrics/{partition}_precision": P,
+                        f"eval_metrics/{partition}_recall": R}
             eval_metric = F
         synchronize()
 
@@ -180,11 +181,11 @@ def eval_lane(net, dataset, data_root, loader, work_dir, griding_num, use_cls, p
                                             os.path.join(data_root, f'{partition}_label.json'))
             res = json.loads(res)
             eval_metric = res[0]['value']
-            log_dict = {f"{partition}_accuracy": eval_metric}
+            log_dict = {f"eval_metrics/{partition}_accuracy": eval_metric}
             dist_print("Accuracy %.5f" % eval_metric)
         synchronize()
         if cls_acc_metric is not None:
-            log_dict[f"{partition}_class_accuracy"] = cls_acc_metric
+            log_dict[f"eval_metrics/{partition}_class_accuracy"] = cls_acc_metric
             print(f"Class Accuracy: {cls_acc_metric:.5f}")
     else:
         raise NotImplementedError("Only support CULane|TuSimple")

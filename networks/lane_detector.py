@@ -85,16 +85,13 @@ class UltraFastLaneDetector(nn.Module):
         num_gridding = hyperparams["griding_num"]+1
         row_anchors = hyperparams["num_anchors"]
         num_lanes = hyperparams["num_lanes"]
-        num_classes = hyperparams["num_classes"]
         self.det_dim = (num_gridding, row_anchors, num_lanes)
-        self.cls_dim = (num_classes, num_lanes)
         self.use_aux = hyperparams["use_aux"]
         self.use_cls = hyperparams["use_cls"]
         self.det_fc_size = hyperparams["det_fc_size"]
         self.baseline = baseline
 
         self.total_det_dim = int(np.prod(self.det_dim))
-        self.total_cls_dim = int(np.prod(self.cls_dim))
 
         # input : nchw,
         # output: (w+1) * sample_rows * 4
@@ -147,7 +144,11 @@ class UltraFastLaneDetector(nn.Module):
         initialize_weights(self.det)
 
         if self.use_cls:
+            num_classes = hyperparams["num_classes"]
             self.cls_fc_size = hyperparams["cls_fc_size"]
+            self.cls_dim = (num_classes, num_lanes)
+            self.total_cls_dim = int(np.prod(self.cls_dim))
+
             self.cls = torch.nn.Sequential(
                 torch.nn.Linear(self.fea_in, self.cls_fc_size),
                 torch.nn.ReLU(),

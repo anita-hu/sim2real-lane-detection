@@ -51,8 +51,8 @@ make
 ```
 For evaluation, run
 ```
-python test.py --config configs/tusimple/unit.yaml \
-               --checkpoint outputs/unit/checkpoints/gen.pt \
+python test.py --config configs/tusimple/baseline.yaml \
+               --checkpoint outputs/baseline/checkpoints/gen.pt \
                --output_folder results
 ```
 
