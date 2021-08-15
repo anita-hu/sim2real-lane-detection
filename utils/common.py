@@ -67,7 +67,6 @@ def write_loss(iterations, trainer):
         else:
             loss_folder.append('gen_loss')
     log_dict = {f'{f}/{m}': getattr(trainer, m) for f, m in zip(loss_folder, members)}
-    print(log_dict)
     log_dict.update(trainer.log_dict)  # additional logs
     wandb.log(log_dict, step=iterations)
 
