@@ -8,6 +8,7 @@ from tqdm import tqdm
 from trainers import MUNIT_Trainer, UNIT_Trainer, Baseline_Trainer, ADA_Trainer
 import torch
 from data.dataloader import get_train_loader, get_test_loader
+from data.constants import wato2tusimple_class_mapping
 from evaluation.eval_wrapper import eval_lane
 
 try:
@@ -169,7 +170,7 @@ for epoch in range(start_epoch, config['max_epoch']):
     with Timer("Elapsed time in validation: %f"):
         log_dict, val_metric = eval_lane(trainer, config['dataset'], config['dataB_root'], val_loader_b,
                                          output_directory, config['lane']['griding_num'],
-                                         config['lane']['use_cls'], "val", cls_map)
+                                         config['lane']['use_cls'], "val", wato2tusimple_class_mapping)
 
     log_dict["epoch"] = epoch + 1
     wandb.log(log_dict, step=iterations)
