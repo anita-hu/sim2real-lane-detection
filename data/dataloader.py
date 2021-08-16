@@ -19,7 +19,7 @@ def get_culane_row_anchor(image_height):
 
 def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux,
                      distributed, num_lanes, use_cls, image_dim=(288, 800),
-                     return_label=False, baseline=False, cls_map=None):
+                     return_label=False, baseline=False):
     target_transform = transforms.Compose([
         mytransforms.FreeScaleMask(image_dim),
         mytransforms.MaskToTensor(),
@@ -58,7 +58,6 @@ def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux,
                                 use_aux=use_aux,
                                 num_lanes=num_lanes,
                                 use_cls=use_cls,
-                                cls_map=cls_map,
                                 return_label=return_label)
 
     if distributed:

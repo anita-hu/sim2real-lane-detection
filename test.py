@@ -8,6 +8,7 @@ import torch
 from utils import get_config
 from trainers import MUNIT_Trainer, UNIT_Trainer, Baseline_Trainer, ADA_Trainer
 from data.dataloader import get_test_loader
+from data.constants import wato2tusimple_class_mapping
 from evaluation.eval_wrapper import eval_lane
 
 parser = argparse.ArgumentParser()
@@ -92,7 +93,8 @@ if config['dataset'] == 'TuSimple' and config["lane"]["use_cls"]:
         work_dir=opts.output_folder,
         griding_num=config['lane']['griding_num'],
         use_cls=config["lane"]["use_cls"],
-        partition='val'
+        partition='val',
+        cls_map=wato2tusimple_class_mapping
     )
 
 print("Evaluating on test set")

@@ -50,7 +50,7 @@ class LaneTestDataset(torch.utils.data.Dataset):
 class LaneDataset(torch.utils.data.Dataset):
     def __init__(self, path, list_path, img_transform=None, target_transform=None, simu_transform=None, griding_num=50,
                  image_dim=(288, 800), row_anchor=None, use_aux=False, segment_transform=None, num_lanes=4,
-                 use_cls=False, cls_map=None, return_label=False):
+                 use_cls=False, return_label=False):
         super(LaneDataset, self).__init__()
         self.img_transform = img_transform
         self.target_transform = target_transform
@@ -61,7 +61,6 @@ class LaneDataset(torch.utils.data.Dataset):
         self.use_aux = use_aux
         self.num_lanes = num_lanes
         self.use_cls = use_cls
-        self.cls_map = cls_map
         self.return_label = return_label
         self.resize_dim = image_dim
 
@@ -88,10 +87,7 @@ class LaneDataset(torch.utils.data.Dataset):
 
         if self.use_cls:
             # get classification labels from list
-            if self.cls_map is None:
-                cls_label_list = list(map(int, l_info[-4:]))
-            else:
-                cls_label_list = [self.cls_map[int(cls_num)] for cls_num in l_info[-4:]]
+            cls_label_list = list(map(int, l_info[-4:]))
             cls_label = np.array(cls_label_list)
         else:
             # can't return None from dataloader so use an empty list

@@ -8,7 +8,6 @@ from tqdm import tqdm
 from trainers import MUNIT_Trainer, UNIT_Trainer, Baseline_Trainer, ADA_Trainer
 import torch
 from data.dataloader import get_train_loader, get_test_loader
-from data.constants import wato2tusimple_class_mapping
 from evaluation.eval_wrapper import eval_lane
 
 try:
@@ -44,12 +43,6 @@ wandb.init(entity=opts.entity, project=opts.project, config=config)
 torch.manual_seed(config["random_seed"])
 torch.backends.cudnn.deterministic = True
 
-# Only map classes when using TuSimple
-if config["dataset"] == "TuSimple" and config["lane"]["use_cls"]:
-    cls_map = wato2tusimple_class_mapping
-else:
-    cls_map = None
-
 # Setup data loaders
 # NOTE: By convention, dataset A will be simulation, labelled data, while dataset B will be real-world without labels
 print(f"Loading dataset A (labelled, simulated) from {config['dataA_root']}")
@@ -64,8 +57,7 @@ train_loader_a = get_train_loader(
     use_cls=config["lane"]["use_cls"],
     baseline=baseline,
     image_dim=(config["input_height"], config["input_width"]),
-    return_label=True,
-    cls_map=cls_map
+    return_label=True
 )
 
 print(f"Loading dataset B (unlabelled, real-world) from {config['dataB_root']}")
@@ -177,7 +169,7 @@ for epoch in range(start_epoch, config['max_epoch']):
     with Timer("Elapsed time in validation: %f"):
         log_dict, val_metric = eval_lane(trainer, config['dataset'], config['dataB_root'], val_loader_b,
                                          output_directory, config['lane']['griding_num'],
-                                         config['lane']['use_cls'], "val")
+                                         config['lane']['use_cls'], "val", cls_map)
 
     log_dict["epoch"] = epoch + 1
     wandb.log(log_dict, step=iterations)

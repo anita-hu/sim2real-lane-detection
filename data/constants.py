@@ -36,7 +36,7 @@ wato2tusimple_class_mapping = {
     4: 1,  # continuous yellow
     5: 4,  # double dashed
     6: 4,  # double dashed
-    7: 6,  # double continuous yellow
+    7: 7,  # double continuous yellow
     8: 6,  # double continuous yellow
     9: 4,  # double dashed
     10: 4,  # double dashed
