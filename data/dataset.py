@@ -89,7 +89,7 @@ class LaneDataset(torch.utils.data.Dataset):
         if self.use_cls:
             # get classification labels from list
             if self.cls_map is None:
-                cls_label_list = map(int, l_info[-4:])
+                cls_label_list = list(map(int, l_info[-4:]))
             else:
                 cls_label_list = [self.cls_map[int(cls_num)] for cls_num in l_info[-4:]]
             cls_label = np.array(cls_label_list)
