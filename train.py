@@ -5,7 +5,7 @@ Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses
 from utils import prepare_sub_folder, write_loss, get_config, write_2images, Timer
 import argparse
 from tqdm import tqdm
-from trainers import MUNIT_Trainer, UNIT_Trainer, Baseline_Trainer
+from trainers import MUNIT_Trainer, UNIT_Trainer, Baseline_Trainer, ADA_Trainer
 import torch
 from data.dataloader import get_train_loader, get_test_loader
 from evaluation.eval_wrapper import eval_lane
@@ -31,6 +31,7 @@ opts = parser.parse_args()
 # Load experiment setting
 config = get_config(opts.config)
 baseline = config['trainer'] == 'Baseline'
+no_adv_gen = config['trainer'] in ['Baseline', 'ADA']
 config['vgg_model_path'] = opts.output_path
 config["resume"] = opts.resume
 
@@ -71,12 +72,14 @@ elif config['trainer'] == 'UNIT':
     trainer = UNIT_Trainer(config)
 elif config['trainer'] == 'Baseline':
     trainer = Baseline_Trainer(config)
+elif config['trainer'] == 'ADA':
+    trainer = ADA_Trainer(config)
 else:
-    sys.exit("Only support MUNIT|UNIT|Baseline")
+    sys.exit("Only support MUNIT|UNIT|Baseline|ADA")
 
 trainer.cuda()
 
-if not baseline:
+if not no_adv_gen:
     display_size = config['display_size']
     train_display_images_a = torch.stack([train_loader_a.dataset[i][0] for i in range(display_size)]).cuda()
     train_display_images_b = torch.stack([train_loader_b.dataset[i] for i in range(display_size)]).cuda()
@@ -136,7 +139,7 @@ for epoch in range(start_epoch, config['max_epoch']):
     trainer.reset_metrics()
 
     # Write images
-    if not baseline and (epoch + 1) % config['image_save_epoch'] == 0:
+    if not no_adv_gen and (epoch + 1) % config['image_save_epoch'] == 0:
         with torch.no_grad():
             test_image_outputs = trainer.sample(train_display_images_a, test_display_images_b)
             train_image_outputs = trainer.sample(train_display_images_a, train_display_images_b)

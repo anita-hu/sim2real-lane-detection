@@ -6,7 +6,7 @@ import os
 import sys
 import torch
 from utils import get_config
-from trainers import MUNIT_Trainer, UNIT_Trainer, Baseline_Trainer
+from trainers import MUNIT_Trainer, UNIT_Trainer, Baseline_Trainer, ADA_Trainer
 from data.dataloader import get_test_loader
 from evaluation.eval_wrapper import eval_lane
 
@@ -35,6 +35,8 @@ elif config['trainer'] == 'UNIT':
     trainer = UNIT_Trainer(config)
 elif config['trainer'] == 'Baseline':
     trainer = Baseline_Trainer(config)
+elif config['trainer'] == 'ADA':
+    trainer = ADA_Trainer(config)
 else:
     sys.exit("Only support MUNIT|UNIT|Baseline")
 
