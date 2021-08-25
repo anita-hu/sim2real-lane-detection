@@ -9,7 +9,6 @@ class FeatureDis(nn.Module):
         super(FeatureDis, self).__init__()
         self.n_layer = params['n_layer']
         self.dim = params['dim']
-        # self.norm = params['norm']
         self.input_dim = input_dim
 
         layers = [nn.Conv2d(input_dim, self.dim, kernel_size=3, stride=2, padding=1), nn.LeakyReLU(0.2)]
@@ -22,6 +21,7 @@ class FeatureDis(nn.Module):
         self.fc = nn.Linear(self.dim, 1)
         if multi_gpu:
             self.conv_net = DataParallel(self.conv_net)
+            self.fc = DataParallel(self.fc)
 
     def forward(self, x):
         x = self.conv_net(x).view(-1, self.dim)

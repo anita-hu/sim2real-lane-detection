@@ -136,7 +136,7 @@ class ADA_Trainer(nn.Module):
             fea_a = self.gen_b(x_a)
             fea_b = self.gen_b(x_b)
             # D loss
-            self.loss_dis_total = self.dis.calc_dis_loss(fea_a, fea_b)
+            self.loss_dis_total = self.dis.calc_dis_loss(fea_a.detach(), fea_b.detach())
 
         if hyperparameters["mixed_precision"]:
             self.scaler.scale(self.loss_dis_total).backward()
