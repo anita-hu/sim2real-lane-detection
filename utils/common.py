@@ -89,20 +89,22 @@ def vgg_preprocess(batch):
     return batch
 
 
-def get_scheduler(optimizer, hyperparameters, iterations=-1):
+def get_scheduler(optimizer, hyperparameters, epochs=-1):
     if 'lr_policy' not in hyperparameters or hyperparameters['lr_policy'] == 'constant':
         scheduler = None  # constant scheduler
     elif hyperparameters['lr_policy'] == 'step':
         scheduler = lr_scheduler.StepLR(optimizer, step_size=hyperparameters['step_size'],
-                                        gamma=hyperparameters['gamma'], last_epoch=iterations)
+                                        gamma=hyperparameters['gamma'], last_epoch=epochs)
     elif hyperparameters['lr_policy'] == 'cos':
+        iterations = epochs * hyperparameters['iter_per_epoch'] if epochs > 0 else -1
         total_iters = hyperparameters['max_epoch'] * hyperparameters['iter_per_epoch']
         scheduler = CosineAnnealingLR(optimizer, total_iters, eta_min=0, warmup=hyperparameters['warmup'],
-                                      warmup_iters=hyperparameters['warmup_iters'])
+                                      warmup_iters=hyperparameters['warmup_iters'], last_iter=iterations)
     elif hyperparameters['lr_policy'] == 'multi':
+        iterations = epochs * hyperparameters['iter_per_epoch'] if epochs > 0 else -1
         scheduler = MultiStepLR(optimizer, hyperparameters['lr_steps'], gamma=hyperparameters['gamma'],
                                 iters_per_epoch=hyperparameters['iter_per_epoch'], warmup=hyperparameters['warmup'],
-                                warmup_iters=hyperparameters['warmup_iters'])
+                                warmup_iters=hyperparameters['warmup_iters'], last_iter=iterations)
     else:
         return NotImplementedError('learning rate policy [%s] is not implemented', hyperparameters['lr_policy'])
     return scheduler
