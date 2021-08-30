@@ -5,10 +5,11 @@ Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses
 from utils import prepare_sub_folder, write_loss, get_config, write_2images, Timer
 import argparse
 from tqdm import tqdm
-from trainers import MUNIT_Trainer, UNIT_Trainer, Baseline_Trainer
+from trainers import MUNIT_Trainer, UNIT_Trainer, Baseline_Trainer, UNIT_sim2real_Trainer
 import torch
 from data.dataloader import get_train_loader, get_test_loader
 from evaluation.eval_wrapper import eval_lane
+from trainers.sim2real_translators.unit_translator_trainer import 
 
 try:
     from itertools import izip as zip
@@ -69,6 +70,8 @@ if config['trainer'] == 'MUNIT':
     trainer = MUNIT_Trainer(config)
 elif config['trainer'] == 'UNIT':
     trainer = UNIT_Trainer(config)
+elif config['trainer'] == 'UNIT_s2r':
+    trainer = UNIT_sim2real_Trainer(config)
 elif config['trainer'] == 'Baseline':
     trainer = Baseline_Trainer(config)
 else:
