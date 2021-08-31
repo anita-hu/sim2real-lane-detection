@@ -32,8 +32,9 @@ gen:
   n_downsample: 2             # number of downsampling layers in content encoder
   n_res: 4                    # number of residual blocks in content encoder/decoder
   pad_type: reflect           # padding type [zero/reflect]
-dis:
+dis_fea:
   lr: 0.0004                  # initial learning rate
+  warmup_iters: 6000          # iterations before introducing feature adversarial loss
   dim: 128                    # number of filters in the bottommost layer
   norm: none                  # normalization layer [none/bn/in/ln]
   activ: lrelu                # activation function [relu/lrelu/prelu/selu/tanh]
@@ -41,7 +42,6 @@ dis:
   pad_type: reflect           # padding type [zero/reflect]
 lane:
   lr: 0.0004                  # initial learning rate
-  warmup_iters: 6000          # warm up iterations for supervised task only training
   norm: bn                    # normalization layer [none/bn/in/ln]
   use_aux: True               # use segmentation loss [True/False]
   griding_num: 200            # number of column samples

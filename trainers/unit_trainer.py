@@ -6,6 +6,7 @@ TODO: Figure out license
 """
 from networks.unit import MsImageDis, VAEGen
 from networks.lane_detector import UltraFastLaneDetector
+from networks.ada_discriminator import FeatureDis
 from utils import weights_init, vgg_preprocess, load_vgg16, get_scheduler
 from lane_losses import UltraFastLaneDetectionLoss
 from lane_metrics import get_metric_dict, update_metrics, reset_metrics
@@ -28,6 +29,8 @@ class UNIT_Trainer(nn.Module):
                                 multi_gpu=hyperparameters['multi_gpu'])  # discriminator for domain a
         self.dis_b = MsImageDis(hyperparameters['input_dim_b'], hyperparameters['dis'],
                                 multi_gpu=hyperparameters['multi_gpu'])  # discriminator for domain b
+        self.dis_fea = FeatureDis(128, hyperparameters['dis_fea'],
+                                  multi_gpu=hyperparameters['multi_gpu'])  # feature discriminator
         self.instancenorm = nn.InstanceNorm2d(512, affine=False)
         input_size = (hyperparameters['input_height'], hyperparameters['input_width'])
         self.lane_model = UltraFastLaneDetector(hyperparameters['lane'], feature_dims=(128, 256, 512),
@@ -40,7 +43,7 @@ class UNIT_Trainer(nn.Module):
         # Setup the optimizers
         beta1 = hyperparameters['beta1']
         beta2 = hyperparameters['beta2']
-        dis_params = list(self.dis_a.parameters()) + list(self.dis_b.parameters())
+        dis_params = list(self.dis_a.parameters()) + list(self.dis_b.parameters()) + list(self.dis_fea.parameters())
         gen_params = list(self.gen_a.parameters()) + list(self.gen_b.parameters())
         lr = hyperparameters['dis']['lr']
         self.dis_opt = torch.optim.Adam([p for p in dis_params if p.requires_grad],
@@ -60,6 +63,7 @@ class UNIT_Trainer(nn.Module):
         if 'warmup_iters' in hyperparameters['lane']:
             hyperparameters['warmup_iters'] = hyperparameters['lane']['warmup_iters']
         self.lane_scheduler = get_scheduler(self.lane_opt, hyperparameters)
+        self.warmup_iteration = hyperparameters['dis_fea']['warmup_iters']
 
         # Mixed precision training
         self.scaler = amp.GradScaler() if hyperparameters["mixed_precision"] else None
@@ -68,6 +72,7 @@ class UNIT_Trainer(nn.Module):
         self.apply(weights_init(hyperparameters['init']))
         self.dis_a.apply(weights_init('gaussian'))
         self.dis_b.apply(weights_init('gaussian'))
+        self.dis_fea.apply(weights_init('gaussian'))
 
         # Load VGG model if needed
         if 'vgg_w' in hyperparameters.keys() and hyperparameters['vgg_w'] > 0:
@@ -180,12 +185,18 @@ class UNIT_Trainer(nn.Module):
             # GAN loss
             self.loss_gen_adv_a = self.dis_a.calc_gen_loss(x_ba)
             self.loss_gen_adv_b = self.dis_b.calc_gen_loss(x_ab)
+            self.loss_gen_adv_fea = self.dis_fea.calc_gen_loss(h_a, h_b)
             # domain-invariant perceptual loss
             self.loss_gen_vgg_a = self._compute_vgg_loss(self.vgg, x_ba, x_b) if hyperparameters['vgg_w'] > 0 else 0
             self.loss_gen_vgg_b = self._compute_vgg_loss(self.vgg, x_ab, x_a) if hyperparameters['vgg_w'] > 0 else 0
             # total loss
+            self.warmup_iteration -= 1
+            self.warmup_iteration = min(0, self.warmup_iteration)
+            if self.warmup_iteration > 0:
+                hyperparameters['gan_fea_w'] = 0
             self.loss_gen_total = hyperparameters['gan_w'] * self.loss_gen_adv_a + \
                                   hyperparameters['gan_w'] * self.loss_gen_adv_b + \
+                                  hyperparameters['gan_fea_w'] * self.loss_gen_adv_fea + \
                                   hyperparameters['recon_x_w'] * self.loss_gen_recon_x_a + \
                                   hyperparameters['recon_kl_w'] * self.loss_gen_recon_kl_a + \
                                   hyperparameters['recon_x_w'] * self.loss_gen_recon_x_b + \
@@ -243,7 +254,9 @@ class UNIT_Trainer(nn.Module):
             # D loss
             self.loss_dis_a = self.dis_a.calc_dis_loss(x_ba.detach(), x_a)
             self.loss_dis_b = self.dis_b.calc_dis_loss(x_ab.detach(), x_b)
-            self.loss_dis_total = hyperparameters['gan_w'] * self.loss_dis_a + hyperparameters['gan_w'] * self.loss_dis_b
+            self.loss_dis_fea = self.dis_fea.calc_dis_loss(h_a.detach(), h_b.detach())
+            self.loss_dis_total = hyperparameters['gan_w'] * (self.loss_dis_a + self.loss_dis_b) + \
+                                  hyperparameters['gan_fea_w'] * self.loss_dis_fea
 
         if hyperparameters["mixed_precision"]:
             self.scaler.scale(self.loss_dis_total).backward()

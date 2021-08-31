@@ -25,7 +25,7 @@ class ADA_Trainer(nn.Module):
                                norm=hyperparameters['gen']['norm'])  # encoder for both domains
         if hyperparameters['multi_gpu']:
             self.gen_b = DataParallel(self.gen_b)
-        self.dis = FeatureDis(128, hyperparameters['dis'],
+        self.dis = FeatureDis(128, hyperparameters['dis_fea'],
                               multi_gpu=hyperparameters['multi_gpu'])  # feature discriminator
         input_size = (hyperparameters['input_height'], hyperparameters['input_width'])
         self.lane_model = UltraFastLaneDetector(hyperparameters['lane'], feature_dims=(128, 256, 512),
@@ -38,7 +38,7 @@ class ADA_Trainer(nn.Module):
         # Setup the optimizers
         beta1 = hyperparameters['beta1']
         beta2 = hyperparameters['beta2']
-        lr = hyperparameters['dis']['lr']
+        lr = hyperparameters['dis_fea']['lr']
         self.dis_opt = torch.optim.Adam([p for p in self.dis.parameters() if p.requires_grad],
                                         lr=lr, betas=(beta1, beta2), weight_decay=hyperparameters['weight_decay'])
         lr = hyperparameters['gen']['lr']
@@ -50,7 +50,7 @@ class ADA_Trainer(nn.Module):
         self.dis_scheduler = get_scheduler(self.dis_opt, hyperparameters)
         self.gen_scheduler = get_scheduler(self.gen_opt, hyperparameters)
         self.lane_scheduler = get_scheduler(self.lane_opt, hyperparameters)
-        self.warmup_iteration = hyperparameters['lane']['warmup_iters']  # iterations to only train supervised network
+        self.warmup_iteration = hyperparameters['dis_fea']['warmup_iters']  # iterations to only train supervised task
 
         # Mixed precision training
         self.scaler = amp.GradScaler() if hyperparameters["mixed_precision"] else None

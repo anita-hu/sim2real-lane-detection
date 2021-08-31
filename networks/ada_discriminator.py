@@ -2,19 +2,20 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.nn.parallel import DataParallel
+from networks.unit import Conv2dBlock
 
 
 class FeatureDis(nn.Module):
     def __init__(self, input_dim, params, multi_gpu=False):
         super(FeatureDis, self).__init__()
-        self.n_layer = params['n_layer']
+        n_layer = params['n_layer']
+        pad_type = params['pad_type']
         self.dim = params['dim']
         self.input_dim = input_dim
 
-        layers = [nn.Conv2d(input_dim, self.dim, kernel_size=3, stride=2, padding=1), nn.LeakyReLU(0.2)]
-        for i in range(self.n_layer - 1):
-            layers.append(nn.Conv2d(self.dim, self.dim * 2, kernel_size=3, stride=2, padding=1))
-            layers.append(nn.LeakyReLU(0.2))
+        layers = [Conv2dBlock(input_dim, self.dim, kernel_size=3, stride=2, padding=1, pad_type=pad_type)]
+        for i in range(n_layer - 1):
+            layers.append(Conv2dBlock(self.dim, self.dim * 2, kernel_size=3, stride=2, padding=1, pad_type=pad_type))
             self.dim *= 2
         layers.append(nn.AdaptiveAvgPool2d(1))
         self.conv_net = nn.Sequential(*layers)

@@ -26,7 +26,8 @@ import numpy as np
 import torch
 import torchvision
 from torch import nn
-from networks.norm import LayerNorm
+import torch.nn.functional as F
+from networks.basic_blocks import Conv2dBlock
 from networks.resnet_autoencoder import BasicBlockEnc
 
 
@@ -75,29 +76,6 @@ class Resnet(nn.Module):
         return x2, x3, x4
 
 
-class ConvNormRelu(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, bias=False, norm='bn'):
-        super(ConvNormRelu, self).__init__()
-        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size,
-                              stride=stride, padding=padding, dilation=dilation, bias=bias)
-        if norm == 'bn':
-            norm_layer = nn.BatchNorm2d
-        elif norm == 'in':
-            norm_layer = nn.InstanceNorm2d
-        elif norm == 'ln':
-            norm_layer = LayerNorm
-        else:
-            raise NotImplementedError("Unsupported normalization: {}".format(norm))
-        self.norm = norm_layer(out_channels)
-        self.relu = nn.ReLU()
-
-    def forward(self, x):
-        x = self.conv(x)
-        x = self.norm(x)
-        x = self.relu(x)
-        return x
-
-
 class UltraFastLaneDetector(nn.Module):
     def __init__(self, hyperparams, feature_dims=None, size=(288, 800), baseline=False):
         super(UltraFastLaneDetector, self).__init__()
@@ -122,25 +100,25 @@ class UltraFastLaneDetector(nn.Module):
 
         if self.use_aux:
             self.aux_header2 = nn.Sequential(
-                ConvNormRelu(feature_dims[0], 128, kernel_size=3, stride=1, padding=1, norm=norm),
-                ConvNormRelu(128, 128, 3, padding=1, norm=norm),
-                ConvNormRelu(128, 128, 3, padding=1, norm=norm),
-                ConvNormRelu(128, 128, 3, padding=1, norm=norm),
+                Conv2dBlock(feature_dims[0], 128, kernel_size=3, stride=1, padding=1, norm=norm, use_bias=False),
+                Conv2dBlock(128, 128, 3, stride=1, padding=1, norm=norm, use_bias=False),
+                Conv2dBlock(128, 128, 3, stride=1, padding=1, norm=norm, use_bias=False),
+                Conv2dBlock(128, 128, 3, stride=1, padding=1, norm=norm, use_bias=False),
             )
             self.aux_header3 = nn.Sequential(
-                ConvNormRelu(feature_dims[1], 128, kernel_size=3, stride=1, padding=1, norm=norm),
-                ConvNormRelu(128, 128, 3, padding=1, norm=norm),
-                ConvNormRelu(128, 128, 3, padding=1, norm=norm),
+                Conv2dBlock(feature_dims[1], 128, kernel_size=3, stride=1, padding=1, norm=norm, use_bias=False),
+                Conv2dBlock(128, 128, 3, stride=1, padding=1, norm=norm, use_bias=False),
+                Conv2dBlock(128, 128, 3, stride=1, padding=1, norm=norm, use_bias=False),
             )
             self.aux_header4 = nn.Sequential(
-                ConvNormRelu(feature_dims[2], 128, kernel_size=3, stride=1, padding=1, norm=norm),
-                ConvNormRelu(128, 128, 3, padding=1, norm=norm),
+                Conv2dBlock(feature_dims[2], 128, kernel_size=3, stride=1, padding=1, norm=norm, use_bias=False),
+                Conv2dBlock(128, 128, 3, stride=1, padding=1, norm=norm, use_bias=False),
             )
             self.aux_combine = nn.Sequential(
-                ConvNormRelu(384, 256, 3, padding=2, dilation=2, norm=norm),
-                ConvNormRelu(256, 128, 3, padding=2, dilation=2, norm=norm),
-                ConvNormRelu(128, 128, 3, padding=2, dilation=2, norm=norm),
-                ConvNormRelu(128, 128, 3, padding=4, dilation=4, norm=norm),
+                Conv2dBlock(384, 256, 3, stride=1, padding=2, dilation=2, norm=norm, use_bias=False),
+                Conv2dBlock(256, 128, 3, stride=1, padding=2, dilation=2, norm=norm, use_bias=False),
+                Conv2dBlock(128, 128, 3, stride=1, padding=2, dilation=2, norm=norm, use_bias=False),
+                Conv2dBlock(128, 128, 3, stride=1, padding=4, dilation=4, norm=norm, use_bias=False),
                 nn.Conv2d(128, self.cls_dim[-1] + 1, 1)
                 # output : n, num_of_lanes+1, h, w
             )
@@ -167,9 +145,9 @@ class UltraFastLaneDetector(nn.Module):
         if self.use_aux:
             x2 = self.aux_header2(x2)
             x3 = self.aux_header3(x3)
-            x3 = nn.functional.interpolate(x3, scale_factor=2, mode='bilinear')
+            x3 = F.interpolate(x3, scale_factor=2, mode='bilinear')
             x4 = self.aux_header4(fea)
-            x4 = nn.functional.interpolate(x4, scale_factor=4, mode='bilinear')
+            x4 = F.interpolate(x4, scale_factor=4, mode='bilinear')
             aux_seg = torch.cat([x2, x3, x4], dim=1)
             aux_seg = self.aux_combine(aux_seg)
         else:
