@@ -106,11 +106,11 @@ class AdaINGen(nn.Module):
         n_blocks = params['n_mlp_blocks']
 
         # style encoder
-        self.enc_style = StyleEncoder(n_style_res, input_dim, style_dim, norm='none', pad_type=pad_type)
+        self.enc_style = StyleEncoder(n_style_res, input_dim, style_dim, activ=activ, norm='none', pad_type=pad_type)
 
         # content encoder
-        self.enc_content = ResNetEnc(num_blocks=n_res, nc=input_dim, norm=norm, pad_type=pad_type)
-        self.dec = ResNetDec(num_blocks=n_res, nc=input_dim, norm='adain', pad_type=pad_type)
+        self.enc_content = ResNetEnc(num_blocks=n_res, nc=input_dim, activ=activ, norm=norm, pad_type=pad_type)
+        self.dec = ResNetDec(num_blocks=n_res, nc=input_dim, activ=activ, norm='adain', pad_type=pad_type)
 
         # MLP to generate AdaIN parameters
         self.mlp = MLP(style_dim, self.get_num_adain_params(self.dec), mlp_dim, n_blocks, norm='none', activ=activ)
@@ -166,12 +166,13 @@ class VAEGen(nn.Module):
     def __init__(self, input_dim, params, multi_gpu=False):
         super(VAEGen, self).__init__()
         n_res = params['n_res']
+        activ = params['activ']
         norm = params['norm']
         pad_type = params['pad_type']
 
         # content encoder
-        self.enc = ResNetEnc(num_blocks=n_res, nc=input_dim, norm=norm, pad_type=pad_type)
-        self.dec = ResNetDec(num_blocks=n_res, nc=input_dim, norm=norm, pad_type=pad_type)
+        self.enc = ResNetEnc(num_blocks=n_res, nc=input_dim, activ=activ, norm=norm, pad_type=pad_type)
+        self.dec = ResNetDec(num_blocks=n_res, nc=input_dim, activ=activ, norm=norm, pad_type=pad_type)
 
         if multi_gpu:
             self.enc = DataParallel(self.enc)
@@ -202,9 +203,9 @@ class VAEGen(nn.Module):
 # Encoder and Decoders
 ##################################################################################
 class StyleEncoder(nn.Module):
-    def __init__(self, n_res, input_dim, style_dim, norm='none', pad_type='zeros'):
+    def __init__(self, n_res, input_dim, style_dim, activ='relu', norm='none', pad_type='zeros'):
         super(StyleEncoder, self).__init__()
-        self.model = [ResNetEnc(num_blocks=n_res, nc=input_dim, norm=norm, pad_type=pad_type)]
+        self.model = [ResNetEnc(num_blocks=n_res, nc=input_dim, activ=activ, norm=norm, pad_type=pad_type)]
         self.model += [nn.AdaptiveAvgPool2d(1)]  # global average pooling
         self.model += [nn.Conv2d(128, style_dim, 1, 1, 0)]
         self.model = nn.Sequential(*self.model)

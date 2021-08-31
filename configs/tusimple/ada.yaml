@@ -31,7 +31,7 @@ gen:
   activ: relu                 # activation function [relu/lrelu/prelu/selu/tanh]
   n_downsample: 2             # number of downsampling layers in content encoder
   n_res: 4                    # number of residual blocks in content encoder/decoder
-  pad_type: reflect           # padding type [zero/reflect]
+  pad_type: zeros           # padding type [zeros/reflect]
 dis_fea:
   lr: 0.0004                  # initial learning rate
   warmup_iters: 6000          # iterations before introducing feature adversarial loss
@@ -39,10 +39,11 @@ dis_fea:
   norm: none                  # normalization layer [none/bn/in/ln]
   activ: lrelu                # activation function [relu/lrelu/prelu/selu/tanh]
   n_layer: 4                  # number of layers in D
-  pad_type: reflect           # padding type [zero/reflect]
+  pad_type: zeros           # padding type [zeros/reflect]
 lane:
   lr: 0.0004                  # initial learning rate
   norm: bn                    # normalization layer [none/bn/in/ln]
+  activ: lrelu                # activation function [relu/lrelu/prelu/selu/tanh]
   use_aux: True               # use segmentation loss [True/False]
   griding_num: 100            # number of column samples
   cls_num_per_lane: 56        # number of row anchors [TuSimple/WATO=56, CULane=18]

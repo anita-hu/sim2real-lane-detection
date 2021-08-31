@@ -37,7 +37,7 @@ gen:
   lr: 0.0001                  # initial learning rate
   dim: 64                     # number of filters in the bottommost layer
   norm: bn                    # normalization layer [none/bn/in/ln/adain]
-  activ: relu                 # activation function [relu/lrelu/prelu/selu/tanh]
+  activ: lrelu                # activation function [relu/lrelu/prelu/selu/tanh]
   n_downsample: 2             # number of downsampling layers in content encoder
   n_res: 4                    # number of residual blocks in content encoder/decoder
   pad_type: reflect           # padding type [zero/reflect]
@@ -54,6 +54,7 @@ lane:
   lr: 0.0004                  # initial learning rate
   warmup_iters: 44440         # warm up iterations
   norm: bn                    # normalization layer [none/bn/in/ln]
+  activ: lrelu                # activation function [relu/lrelu/prelu/selu/tanh]
   use_aux: True               # use segmentation loss [True/False]
   griding_num: 200            # number of column samples
   cls_num_per_lane: 18        # number of row anchors [TuSimple/WATO=56, CULane=18]

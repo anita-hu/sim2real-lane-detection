@@ -81,6 +81,7 @@ class UltraFastLaneDetector(nn.Module):
         super(UltraFastLaneDetector, self).__init__()
 
         norm = hyperparams["norm"]
+        activ = hyperparams["activ"]
         num_gridding = hyperparams["griding_num"]+1
         row_anchors = hyperparams["cls_num_per_lane"]
         num_lanes = hyperparams["num_lanes"]
@@ -93,32 +94,37 @@ class UltraFastLaneDetector(nn.Module):
         # output: (w+1) * sample_rows * 4
 
         if not baseline:
-            self.layer2 = nn.Sequential(BasicBlockEnc(128, 1, norm=norm))
-            self.layer3 = nn.Sequential(BasicBlockEnc(128, 2, norm=norm), BasicBlockEnc(256, 1, norm=norm),
-                                        BasicBlockEnc(256, 1, norm=norm))
-            self.layer4 = nn.Sequential(BasicBlockEnc(256, 2, norm=norm), BasicBlockEnc(512, 1, norm=norm))
+            self.layer2 = nn.Sequential(BasicBlockEnc(128, 1, activ=activ, norm=norm))
+            self.layer3 = nn.Sequential(BasicBlockEnc(128, 2, activ=activ, norm=norm),
+                                        BasicBlockEnc(256, 1, activ=activ, norm=norm),
+                                        BasicBlockEnc(256, 1, activ=activ, norm=norm))
+            self.layer4 = nn.Sequential(BasicBlockEnc(256, 2, activ=activ, norm=norm),
+                                        BasicBlockEnc(512, 1, activ=activ, norm=norm))
 
         if self.use_aux:
             self.aux_header2 = nn.Sequential(
-                Conv2dBlock(feature_dims[0], 128, kernel_size=3, stride=1, padding=1, norm=norm, use_bias=False),
-                Conv2dBlock(128, 128, 3, stride=1, padding=1, norm=norm, use_bias=False),
-                Conv2dBlock(128, 128, 3, stride=1, padding=1, norm=norm, use_bias=False),
-                Conv2dBlock(128, 128, 3, stride=1, padding=1, norm=norm, use_bias=False),
+                Conv2dBlock(feature_dims[0], 128, kernel_size=3, stride=1, padding=1, activation=activ, norm=norm,
+                            use_bias=False),
+                Conv2dBlock(128, 128, 3, stride=1, padding=1, activation=activ, norm=norm, use_bias=False),
+                Conv2dBlock(128, 128, 3, stride=1, padding=1, activation=activ, norm=norm, use_bias=False),
+                Conv2dBlock(128, 128, 3, stride=1, padding=1, activation=activ, norm=norm, use_bias=False),
             )
             self.aux_header3 = nn.Sequential(
-                Conv2dBlock(feature_dims[1], 128, kernel_size=3, stride=1, padding=1, norm=norm, use_bias=False),
-                Conv2dBlock(128, 128, 3, stride=1, padding=1, norm=norm, use_bias=False),
-                Conv2dBlock(128, 128, 3, stride=1, padding=1, norm=norm, use_bias=False),
+                Conv2dBlock(feature_dims[1], 128, kernel_size=3, stride=1, padding=1, activation=activ,
+                            norm=norm, use_bias=False),
+                Conv2dBlock(128, 128, 3, stride=1, padding=1, activation=activ, norm=norm, use_bias=False),
+                Conv2dBlock(128, 128, 3, stride=1, padding=1, activation=activ, norm=norm, use_bias=False),
             )
             self.aux_header4 = nn.Sequential(
-                Conv2dBlock(feature_dims[2], 128, kernel_size=3, stride=1, padding=1, norm=norm, use_bias=False),
-                Conv2dBlock(128, 128, 3, stride=1, padding=1, norm=norm, use_bias=False),
+                Conv2dBlock(feature_dims[2], 128, kernel_size=3, stride=1, padding=1, activation=activ, norm=norm,
+                            use_bias=False),
+                Conv2dBlock(128, 128, 3, stride=1, padding=1, activation=activ, norm=norm, use_bias=False),
             )
             self.aux_combine = nn.Sequential(
-                Conv2dBlock(384, 256, 3, stride=1, padding=2, dilation=2, norm=norm, use_bias=False),
-                Conv2dBlock(256, 128, 3, stride=1, padding=2, dilation=2, norm=norm, use_bias=False),
-                Conv2dBlock(128, 128, 3, stride=1, padding=2, dilation=2, norm=norm, use_bias=False),
-                Conv2dBlock(128, 128, 3, stride=1, padding=4, dilation=4, norm=norm, use_bias=False),
+                Conv2dBlock(384, 256, 3, stride=1, padding=2, dilation=2, activation=activ, norm=norm, use_bias=False),
+                Conv2dBlock(256, 128, 3, stride=1, padding=2, dilation=2, activation=activ, norm=norm, use_bias=False),
+                Conv2dBlock(128, 128, 3, stride=1, padding=2, dilation=2, activation=activ, norm=norm, use_bias=False),
+                Conv2dBlock(128, 128, 3, stride=1, padding=4, dilation=4, activation=activ, norm=norm, use_bias=False),
                 nn.Conv2d(128, self.cls_dim[-1] + 1, 1)
                 # output : n, num_of_lanes+1, h, w
             )

@@ -10,12 +10,15 @@ class FeatureDis(nn.Module):
         super(FeatureDis, self).__init__()
         n_layer = params['n_layer']
         pad_type = params['pad_type']
+        activ = params['activ']
         self.dim = params['dim']
         self.input_dim = input_dim
 
-        layers = [Conv2dBlock(input_dim, self.dim, kernel_size=3, stride=2, padding=1, pad_type=pad_type)]
+        layers = [Conv2dBlock(input_dim, self.dim, kernel_size=3, stride=2, padding=1, activation=activ,
+                              pad_type=pad_type)]
         for i in range(n_layer - 1):
-            layers.append(Conv2dBlock(self.dim, self.dim * 2, kernel_size=3, stride=2, padding=1, pad_type=pad_type))
+            layers.append(Conv2dBlock(self.dim, self.dim * 2, kernel_size=3, stride=2, padding=1, activation=activ,
+                                      pad_type=pad_type))
             self.dim *= 2
         layers.append(nn.AdaptiveAvgPool2d(1))
         self.conv_net = nn.Sequential(*layers)
