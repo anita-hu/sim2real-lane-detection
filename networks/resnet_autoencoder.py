@@ -100,8 +100,8 @@ class ResNetEnc(nn.Module):
                                  pad_type=pad_type, norm=norm, use_bias=False)
         self.layer1 = self._make_layer(BasicBlockEnc, 64, num_blocks[0], stride=1)
         self.layer2 = self._make_layer(BasicBlockEnc, 128, num_blocks[1], stride=2)
-        self.layer3 = self._make_layer(BasicBlockEnc, 256, num_blocks[2], stride=2)
-        self.layer4 = self._make_layer(BasicBlockEnc, 512, num_blocks[3], stride=2)
+        # self.layer3 = self._make_layer(BasicBlockEnc, 256, num_blocks[2], stride=2)
+        # self.layer4 = self._make_layer(BasicBlockEnc, 512, num_blocks[3], stride=2)
 
     def _make_layer(self, BasicBlockEnc, planes, num_blocks, stride):
         strides = [stride] + [1] * (num_blocks - 1)
