@@ -4,11 +4,12 @@ It adds segmentation labels that can be used with the segmentation loss.
 Taken from https://github.com/cfzd/Ultra-Fast-Lane-Detection/blob/master/scripts/convert_tusimple.py
 With some modifications
 """
+import argparse
 import os
 import cv2
 import tqdm
 import numpy as np
-import json, argparse
+import json
 import shutil
 
 

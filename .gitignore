@@ -1,7 +1,8 @@
-# Project specific folders
+# Project specific folders / files
 datasets
 logs
 outputs
+evaluation/culane/evaluate
 
 # weights and biases logging
 wandb/

@@ -1,10 +1,8 @@
 """
 https://github.com/cfzd/Ultra-Fast-Lane-Detection/blob/master/data/dataloader.py
 """
-
-import torch, os
-import numpy as np
-
+import os
+import torch
 import torchvision.transforms as transforms
 import data.mytransforms as mytransforms
 from data.dataset import LaneClsDataset, LaneTestDataset
@@ -85,11 +83,11 @@ def get_test_loader(batch_size, data_root, distributed, image_dim=(288, 800), pa
 
 
 class SeqDistributedSampler(torch.utils.data.distributed.DistributedSampler):
-    '''
+    """
     Change the behavior of DistributedSampler to sequential distributed sampling.
     The sequential sampling helps the stability of multi-thread testing, which needs multi-thread file io.
     Without sequentially sampling, the file io on thread may interfere other threads.
-    '''
+    """
 
     def __init__(self, dataset, num_replicas=None, rank=None, shuffle=False):
         super().__init__(dataset, num_replicas, rank, shuffle)
