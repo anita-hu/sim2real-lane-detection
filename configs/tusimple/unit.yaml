@@ -62,7 +62,7 @@ lane:
   lr: 0.0004                  # initial learning rate
   warmup_iters: 40000         # warm up iterations
   norm: bn                    # normalization layer [none/bn/in/ln]
-  activ: lrelu                # activation function [relu/lrelu/prelu/selu/tanh]
+  activ: relu                 # activation function [relu/lrelu/prelu/selu/tanh]
   use_aux: True               # use segmentation loss [True/False]
   griding_num: 100            # number of column samples
   cls_num_per_lane: 56        # number of row anchors [TuSimple/WATO=56, CULane=18]
