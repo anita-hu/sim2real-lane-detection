@@ -11,6 +11,7 @@ from lane_metrics import get_metric_dict, update_metrics, reset_metrics
 import torch
 import torch.nn as nn
 from torch.cuda import amp
+from torch.nn.parallel import DataParallel
 import os
 
 
@@ -27,6 +28,10 @@ class Baseline_Trainer(nn.Module):
         self.lane_model = UltraFastLaneDetector(hyperparameters['lane'], feature_dims=feature_dims,
                                                 size=input_size, baseline=True)
         self.lane_loss = UltraFastLaneDetectionLoss(hyperparameters['lane'])
+
+        if hyperparameters['multi_gpu']:
+            self.backbone = DataParallel(self.backbone)
+            self.lane_model = DataParallel(self.lane_model)
 
         # Setup the optimizers
         beta1 = hyperparameters['beta1']
@@ -61,7 +66,7 @@ class Baseline_Trainer(nn.Module):
         reset_metrics(self.metric_dict)
 
     def _log_lane_metrics(self, metric_dict, preds, labels, postfix):
-        if self.lane_model.use_aux:
+        if isinstance(labels, tuple):
             cls_label, seg_label = labels
             cls_out, seg_out = preds
             results = {'cls_out': torch.argmax(cls_out, dim=1), 'cls_label': cls_label,

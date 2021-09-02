@@ -13,6 +13,7 @@ from torch.autograd import Variable
 import torch
 import torch.nn as nn
 from torch.cuda import amp
+from torch.nn.parallel import DataParallel
 import os
 
 
@@ -20,16 +21,23 @@ class MUNIT_Trainer(nn.Module):
     def __init__(self, hyperparameters):
         super(MUNIT_Trainer, self).__init__()
         # Initiate the networks
-        self.gen_a = AdaINGen(hyperparameters['input_dim_a'], hyperparameters['gen'])  # auto-encoder for domain a
-        self.gen_b = AdaINGen(hyperparameters['input_dim_b'], hyperparameters['gen'])  # auto-encoder for domain b
-        self.dis_a = MsImageDis(hyperparameters['input_dim_a'], hyperparameters['dis'])  # discriminator for domain a
-        self.dis_b = MsImageDis(hyperparameters['input_dim_b'], hyperparameters['dis'])  # discriminator for domain b
+        self.gen_a = AdaINGen(hyperparameters['input_dim_a'], hyperparameters['gen'],
+                              multi_gpu=hyperparameters['multi_gpu'])  # auto-encoder for domain a
+        self.gen_b = AdaINGen(hyperparameters['input_dim_b'], hyperparameters['gen'],
+                              multi_gpu=hyperparameters['multi_gpu'])  # auto-encoder for domain b
+        self.dis_a = MsImageDis(hyperparameters['input_dim_a'], hyperparameters['dis'],
+                                multi_gpu=hyperparameters['multi_gpu'])  # discriminator for domain a
+        self.dis_b = MsImageDis(hyperparameters['input_dim_b'], hyperparameters['dis'],
+                                multi_gpu=hyperparameters['multi_gpu'])  # discriminator for domain b
         self.instancenorm = nn.InstanceNorm2d(512, affine=False)
         self.style_dim = hyperparameters['gen']['style_dim']
         input_size = (hyperparameters['input_height'], hyperparameters['input_width'])
-        self.lane_model = UltraFastLaneDetector(hyperparameters['lane'], feature_dims=self.gen_a.enc_content.feature_dims,
+        self.lane_model = UltraFastLaneDetector(hyperparameters['lane'], feature_dims=(128, 256, 512),
                                                 size=input_size)
         self.lane_loss = UltraFastLaneDetectionLoss(hyperparameters['lane'])
+
+        if hyperparameters['multi_gpu']:
+            self.lane_model = DataParallel(self.lane_model)
 
         # fix the noise used in sampling
         display_size = int(hyperparameters['display_size'])
@@ -50,8 +58,14 @@ class MUNIT_Trainer(nn.Module):
         lr = hyperparameters['lane']['lr']
         self.lane_opt = torch.optim.Adam([p for p in self.lane_model.parameters() if p.requires_grad],
                                          lr=lr, betas=(beta1, beta2), weight_decay=hyperparameters['weight_decay'])
+        if 'warmup_iters' in hyperparameters['dis']:
+            hyperparameters['warmup_iters'] = hyperparameters['dis']['warmup_iters']
         self.dis_scheduler = get_scheduler(self.dis_opt, hyperparameters)
+        if 'warmup_iters' in hyperparameters['gen']:
+            hyperparameters['warmup_iters'] = hyperparameters['gen']['warmup_iters']
         self.gen_scheduler = get_scheduler(self.gen_opt, hyperparameters)
+        if 'warmup_iters' in hyperparameters['lane']:
+            hyperparameters['warmup_iters'] = hyperparameters['lane']['warmup_iters']
         self.lane_scheduler = get_scheduler(self.lane_opt, hyperparameters)
 
         # Mixed precision training
@@ -68,6 +82,8 @@ class MUNIT_Trainer(nn.Module):
             self.vgg.eval()
             for param in self.vgg.parameters():
                 param.requires_grad = False
+            if hyperparameters['multi_gpu']:
+                self.vgg = DataParallel(self.vgg)
 
         # Logging additional losses and metrics
         self.log_dict = {}  # updated per log iter
@@ -92,8 +108,7 @@ class MUNIT_Trainer(nn.Module):
     def eval_lanes(self, x):
         self.eval()
         c_b, _ = self.gen_b.encode(x)
-        fea_b = self.gen_b.enc_content.stored_features
-        preds = self.lane_model(fea_b)
+        preds = self.lane_model(c_b)
         self.train()
         return preds
 
@@ -102,7 +117,7 @@ class MUNIT_Trainer(nn.Module):
         reset_metrics(self.metric_dict_cyc)
 
     def _log_lane_metrics(self, metric_dict, preds, labels, postfix):
-        if self.lane_model.use_aux:
+        if isinstance(labels, tuple):
             cls_label, seg_label = labels
             cls_out, seg_out = preds
             results = {'cls_out': torch.argmax(cls_out, dim=1), 'cls_label': cls_label,
@@ -131,8 +146,7 @@ class MUNIT_Trainer(nn.Module):
             c_a, s_a_prime = self.gen_a.encode(x_a)
             c_b, s_b_prime = self.gen_b.encode(x_b)
             # lane detection (within domain)
-            fea_a = self.gen_a.enc_content.stored_features
-            pred_a = self.lane_model(fea_a)
+            pred_a = self.lane_model(c_a)
             # decode (within domain)
             x_a_recon = self.gen_a.decode(c_a, s_a_prime)
             x_b_recon = self.gen_b.decode(c_b, s_b_prime)
@@ -143,8 +157,7 @@ class MUNIT_Trainer(nn.Module):
             c_b_recon, s_a_recon = self.gen_a.encode(x_ba)
             c_a_recon, s_b_recon = self.gen_b.encode(x_ab)
             # lane detection (cyclic)
-            fea_a_recon = self.gen_a.enc_content.stored_features
-            pred_a_cyc = self.lane_model(fea_a_recon)
+            pred_a_cyc = self.lane_model(c_a_recon)
             # decode again (if needed)
             x_aba = self.gen_a.decode(c_a_recon, s_a_prime) if hyperparameters['recon_x_cyc_w'] > 0 else None
             x_bab = self.gen_b.decode(c_b_recon, s_b_prime) if hyperparameters['recon_x_cyc_w'] > 0 else None

@@ -2,7 +2,7 @@
 # Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
 
 # logger options
-log_iter: 500                 # How often do you want to log loss and learning rate values during training
+log_iter: 103                 # How often do you want to log loss and learning rate values during training
 
 # optimization options
 max_epoch: 150                # maximum number of training epochs
@@ -14,14 +14,19 @@ lr: 0.0004                    # initial learning rate
 lr_policy: cos                # learning rate scheduler [constant/step/cos]
 iter_per_epoch: 103           # iterations per epoch
 gamma: 0.1                    # how much to decay learning rate
+warmup: linear                # warm up type
+warmup_iters: 100             # warm up iterations
 mixed_precision: True         # use automatic mixed precision training
+multi_gpu: False              # use multi gpu training
 random_seed: 42
 
 # model options
 trainer: Baseline             # trainer [UNIT/MUNIT/Baseline]
 lane:
   backbone: 18                # resnet backbone for baseline
-  pretrained: True            # use pretrained resnet backbone
+  pretrained: False           # use pretrained resnet backbone
+  norm: bn                    # normalization layer [none/bn/in/ln]
+  activ: relu                 # activation function [relu/lrelu/prelu/selu/tanh]
   use_aux: True               # use segmentation loss [True/False]
   griding_num: 100            # number of column samples
   cls_num_per_lane: 56        # number of row anchors [TuSimple/WATO=56, CULane=18]
