@@ -6,7 +6,6 @@ import torch
 import torchvision.transforms as transforms
 import data.mytransforms as mytransforms
 from data.dataset import LaneDataset, LaneTestDataset
-from data.constants import wato2tusimple_class_mapping
 
 
 def get_tusimple_row_anchor(image_height):

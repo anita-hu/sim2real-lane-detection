@@ -19,12 +19,11 @@ parser.add_argument('--distributed', action='store_true', help="whether use dist
 parser.add_argument('--local_rank', type=int, default=0)
 opts = parser.parse_args()
 
-torch.backends.cudnn.benchmark = True
-
 # Load experiment setting
 config = get_config(opts.config)
 torch.manual_seed(config['random_seed'])
 torch.cuda.manual_seed(config['random_seed'])
+torch.backends.cudnn.benchmark = True
 
 # Setup model and data loader
 config['vgg_w'] = 0  # do not load vgg model
