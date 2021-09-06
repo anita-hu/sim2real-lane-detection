@@ -1,0 +1,77 @@
+# Copyright (C) 2017 NVIDIA Corporation.  All rights reserved.
+# Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
+
+# logger options
+log_iter: 500                 # How often do you want to log loss and learning rate values during training
+image_save_epoch: 1           # How often do you want to save output images during training
+display_size: 4               # How many images do you want to display each time
+
+# optimization options
+max_epoch: 100                # maximum number of training epochs
+batch_size: 2                 # batch size
+weight_decay: 0.0001          # weight decay
+beta1: 0.5                    # Adam parameter
+beta2: 0.999                  # Adam parameter
+init: kaiming                 # initialization [gaussian/kaiming/xavier/orthogonal]
+lr_policy: cos                # learning rate scheduler [constant/step/cos]
+iter_per_epoch: 44440         # iterations per epoch
+gamma: 0.1                    # how much to decay learning rate
+warmup: linear                # warm up type
+warmup_iters: 0               # warm up iterations to use if not specified for each model
+gan_w: 1                      # weight of adversarial loss
+recon_x_w: 10                 # weight of image reconstruction loss
+recon_s_w: 1                  # weight of style reconstruction loss
+recon_c_w: 1                  # weight of content reconstruction loss
+recon_x_cyc_w: 10             # weight of explicit style augmented cycle consistency loss
+vgg_w: 1                      # weight of domain-invariant perceptual loss
+# NOTE: For vanilla sim2real training, we simply zero out the lane losses.
+lane_w: 0                     # weight of lane detection loss
+lane_cyc_w: 0                 # weight of cyclic lane detection loss
+mixed_precision: True         # use automatic mixed precision training
+multi_gpu: True               # use multi gpu training
+random_seed: 42
+
+# model options
+trainer: MUNIT                # trainer [UNIT/MUNIT]
+gen:
+  lr: 0.0001                  # initial learning rate
+  dim: 64                     # number of filters in the bottommost layer
+  norm: bn                    # normalization layer [none/bn/in/ln/adain]
+  n_mlp_blocks: 2             # number of blocks in MLP
+  mlp_dim: 256                # number of filters in MLP
+  style_dim: 8                # length of style code
+  activ: lrelu                # activation function [relu/lrelu/prelu/selu/tanh]
+  n_downsample: 2             # number of downsampling layers in content encoder
+  n_res: 4                    # number of residual blocks in content encoder/decoder
+  pad_type: reflect           # padding type [zero/reflect]
+dis:
+  lr: 0.0004                  # initial learning rate
+  dim: 64                     # number of filters in the bottommost layer
+  norm: none                  # normalization layer [none/bn/in/ln]
+  activ: lrelu                # activation function [relu/lrelu/prelu/selu/tanh]
+  n_layer: 4                  # number of layers in D
+  gan_type: lsgan             # GAN loss [lsgan/nsgan]
+  num_scales: 3               # number of scales
+  pad_type: reflect           # padding type [zero/reflect]
+lane:
+  lr: 0.0004                  # initial learning rate
+  warmup_iters: 1.0e+6        # warm up iterations
+  norm: bn                    # normalization layer [none/bn/in/ln]
+  activ: relu                 # activation function [relu/lrelu/prelu/selu/tanh]
+  use_aux: True               # use segmentation loss [True/False]
+  griding_num: 200            # number of column samples
+  cls_num_per_lane: 18        # number of row anchors [TuSimple/WATO=56, CULane=18]
+  num_lanes: 4                # max number of lanes
+  sim_loss_w: 0.0             # lane similarity loss
+  shp_loss_w: 0.0             # lane shape loss weight
+
+# data options
+input_dim_a: 3                # number of image channels [1/3]
+input_dim_b: 3                # number of image channels [1/3]
+input_height: 288             # resized image height
+input_width: 800              # resized image width
+
+# By convention, dataset A will be simulation, labelled data, while dataset B will be real-world without labels
+dataset: CULane                       # real-world dataset [CULane/TuSimple]
+dataA_root: /datasets/WATO_CULane     # dataset folder location for simulation images with labels
+dataB_root: /datasets/CULane          # dataset folder location for real-world images without labels
