@@ -6,13 +6,13 @@ log_iter: 500                 # How often do you want to log loss and learning r
 
 # optimization options
 max_epoch: 100                # maximum number of training epochs
-batch_size: 8                 # batch size
+batch_size: 16                # batch size
 weight_decay: 0.0001          # weight decay
 beta1: 0.5                    # Adam parameter
 beta2: 0.999                  # Adam parameter
 init: kaiming                 # initialization [gaussian/kaiming/xavier/orthogonal]
 lr_policy: cos                # learning rate scheduler [constant/step/cos]
-iter_per_epoch: 11110         # iterations per epoch
+iter_per_epoch: 5555          # iterations per epoch
 gamma: 0.1                    # how much to decay learning rate
 warmup: linear                # warm up type
 warmup_iters: 0               # warm up iterations to use if not specified for each model
@@ -28,10 +28,9 @@ gen:
   lr: 0.0001                  # initial learning rate
   dim: 64                     # number of filters in the bottommost layer
   norm: bn                    # normalization layer [none/bn/in/ln/adain]
-  activ: lrelu                 # activation function [relu/lrelu/prelu/selu/tanh]
-  n_downsample: 2             # number of downsampling layers in content encoder
-  n_res: 4                    # number of residual blocks in content encoder/decoder
-  pad_type: reflect           # padding type [zero/reflect]
+  activ: lrelu                # activation function [relu/lrelu/prelu/selu/tanh]
+  n_res: [2, 2]               # number of residual blocks in content encoder/decoder
+  pad_type: reflect           # padding type [zeros/reflect/replicate]
 dis_fea:
   lr: 0.0004                  # initial learning rate
   warmup_iters: 6000          # iterations before introducing feature adversarial loss
