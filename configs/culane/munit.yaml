@@ -40,9 +40,9 @@ gen:
   mlp_dim: 256                # number of filters in MLP
   style_dim: 8                # length of style code
   activ: lrelu                # activation function [relu/lrelu/prelu/selu/tanh]
-  n_downsample: 2             # number of downsampling layers in content encoder
-  n_res: 4                    # number of residual blocks in content encoder/decoder
-  pad_type: reflect           # padding type [zero/reflect]
+  n_res: [2, 2]               # number of residual blocks in content encoder/decoder
+  n_style_res: [1, 1]         # number of residual blocks in style encoder
+  pad_type: reflect           # padding type [zeros/reflect/replicate]
 dis:
   lr: 0.0004                  # initial learning rate
   dim: 64                     # number of filters in the bottommost layer
