@@ -1,8 +1,9 @@
-# Project specific folders / files
+# Project specific folders
 datasets
 logs
 outputs
-evaluation/culane/evaluate
+
+*.pth  # models (files are too large)
 
 # weights and biases logging
 wandb/
