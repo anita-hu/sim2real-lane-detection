@@ -139,7 +139,7 @@ class UltraFastLaneDetector(nn.Module):
         self.det = nn.Sequential(
             nn.Linear(self.fea_in, self.det_fc_size),
             nn.ReLU(),
-            nn.Linear(self.det_fc_size, self.total_dim),
+            nn.Linear(self.det_fc_size, self.total_det_dim),
         )
         initialize_weights(self.det)
 
