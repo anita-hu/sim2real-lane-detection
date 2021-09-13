@@ -21,8 +21,13 @@ class ADA_Trainer(nn.Module):
     def __init__(self, hyperparameters):
         super(ADA_Trainer, self).__init__()
         # Initiate the networks
-        self.gen_b = ResNetEnc(nc=hyperparameters['input_dim_b'],
-                               norm=hyperparameters['gen']['norm'])  # encoder for both domains
+        nc = hyperparameters['input_dim_b']
+        n_res = hyperparameters['gen']['n_res']
+        activ = hyperparameters['gen']['activ']
+        norm = hyperparameters['gen']['norm']
+        pad_type = hyperparameters['gen']['pad_type']
+        self.gen_b = ResNetEnc(num_blocks=n_res, nc=nc, activ=activ, norm=norm,
+                               pad_type=pad_type)  # encoder for both domains
         if hyperparameters['multi_gpu']:
             self.gen_b = DataParallel(self.gen_b)
         self.dis = FeatureDis(128, hyperparameters['dis_fea'],
