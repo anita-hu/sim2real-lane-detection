@@ -44,11 +44,16 @@ lane:
   norm: bn                    # normalization layer [none/bn/in/ln]
   activ: relu                 # activation function [relu/lrelu/prelu/selu/tanh]
   use_aux: True               # use segmentation loss [True/False]
+  use_cls: True               # predict lane classes [True/False]
+  det_fc_size: 2048           # size of the detection fc layer
+  cls_fc_size: 1024           # size of the classification fc layer
   griding_num: 100            # number of column samples
-  cls_num_per_lane: 56        # number of row anchors [TuSimple/WATO=56, CULane=18]
+  num_anchors: 56             # number of row anchors [TuSimple/WATO=56, CULane=18]
   num_lanes: 4                # max number of lanes
+  num_classes: 15             # number of classes to predict
   sim_loss_w: 1.0             # lane similarity loss
   shp_loss_w: 0.0             # lane shape loss weight
+  cls_loss_w: 0.1             # lane classification loss weight
 
 # data options
 input_dim_a: 3                # number of image channels [1/3]
