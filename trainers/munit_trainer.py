@@ -95,6 +95,12 @@ class MUNIT_Trainer(nn.Module):
         return torch.mean(torch.abs(input - target))
 
     def forward(self, x_a, x_b):
+        """
+        a prefix of s means _style_
+        a prefix of c means _content_
+        suffixes indicate the domain, or the domain translation. x_ab is x
+        translated from domain a to domain b.
+        """
         self.eval()
         s_a = Variable(self.s_a)
         s_b = Variable(self.s_b)
