@@ -1,5 +1,6 @@
 from evaluation.tusimple.lane import LaneEval
 from evaluation.utils.dist_utils import is_main_process, dist_print, get_rank, get_world_size, dist_tqdm, synchronize
+from lane_metrics import ClassAcc
 import os, json, torch, scipy
 import numpy as np
 import platform
@@ -43,7 +44,7 @@ def generate_lines(out, shape, names, output_path, griding_num, localization_typ
                     fp.write('\n')
 
 
-def run_test(net, loader, exp_name, work_dir, griding_num, use_aux):
+def run_test(net, loader, exp_name, work_dir, griding_num):
     # torch.backends.cudnn.benchmark = True
     output_path = os.path.join(work_dir, exp_name)
     if not os.path.exists(output_path) and is_main_process():
@@ -51,14 +52,12 @@ def run_test(net, loader, exp_name, work_dir, griding_num, use_aux):
     synchronize()
     # import pdb;pdb.set_trace()
     for i, data in enumerate(dist_tqdm(loader)):
-        imgs, names = data
+        imgs, names, _ = data
         imgs = imgs.cuda()
         with torch.no_grad():
-            out = net.eval_lanes(imgs)
-        if len(out) == 2 and use_aux:
-            out, seg_out = out
+            det_out, _, _ = net.eval_lanes(imgs)
 
-        generate_lines(out, imgs[0, 0].shape, names, output_path, griding_num, localization_type='rel',
+        generate_lines(det_out, imgs[0, 0].shape, names, output_path, griding_num, localization_type='rel',
                        flip_updown=True)
 
 
@@ -83,19 +82,27 @@ def generate_tusimple_lines(out, shape, griding_num, localization_type='rel'):
     return lanes
 
 
-def run_test_tusimple(net, loader, work_dir, exp_name, griding_num, use_aux):
+def run_test_tusimple(net, loader, work_dir, exp_name, griding_num, use_cls, cls_map):
     output_path = os.path.join(work_dir, exp_name + '.%d.txt' % get_rank())
     fp = open(output_path, 'w')
+
+    # Lane classification accuracy metric
+    if use_cls:
+        metric = ClassAcc()
+    
     for i, data in enumerate(dist_tqdm(loader)):
-        imgs, names = data
+        imgs, names, cls_label = data
         imgs = imgs.cuda()
         with torch.no_grad():
-            out = net.eval_lanes(imgs)
-        if len(out) == 2 and use_aux:
-            out = out[0]
+            det_out, cls_out, _ = net.eval_lanes(imgs)
+            if use_cls:
+                cls_label = cls_label.long()
+                cls_pred = torch.argmax(cls_out, dim=1).cpu()
+                cls_pred = cls_pred.apply_(lambda x: cls_map[x])
+                metric.update(cls_pred, cls_label)
         for i, name in enumerate(names):
             tmp_dict = {}
-            tmp_dict['lanes'] = generate_tusimple_lines(out[i], imgs[0, 0].shape, griding_num)
+            tmp_dict['lanes'] = generate_tusimple_lines(det_out[i], imgs[0, 0].shape, griding_num)
             tmp_dict['h_samples'] = [160, 170, 180, 190, 200, 210, 220, 230, 240, 250, 260,
                                      270, 280, 290, 300, 310, 320, 330, 340, 350, 360, 370, 380, 390, 400, 410, 420,
                                      430, 440, 450, 460, 470, 480, 490, 500, 510, 520, 530, 540, 550, 560, 570, 580,
@@ -106,6 +113,12 @@ def run_test_tusimple(net, loader, work_dir, exp_name, griding_num, use_aux):
 
             fp.write(json_str + '\n')
     fp.close()
+
+    cls_acc_val = None
+    if use_cls:
+        cls_acc_val = metric.get()
+
+    return cls_acc_val
 
 
 def combine_tusimple_test(work_dir, exp_name):
@@ -130,13 +143,13 @@ def combine_tusimple_test(work_dir, exp_name):
         fp.writelines(all_res_no_dup)
 
 
-def eval_lane(net, dataset, data_root, loader, work_dir, griding_num, use_aux, partition="test"):
+def eval_lane(net, dataset, data_root, loader, work_dir, griding_num, use_cls, partition="test", cls_map=None):
     net.eval()
     eval_metric = None
     log_dict = None
     assert partition in ["test", "val"]
     if dataset == 'CULane':
-        run_test(net, loader, 'culane_eval_tmp', work_dir, griding_num, use_aux)
+        run_test(net, loader, 'culane_eval_tmp', work_dir, griding_num)
         synchronize()  # wait for all results
         if is_main_process():
             if partition == "test":
@@ -155,13 +168,14 @@ def eval_lane(net, dataset, data_root, loader, work_dir, griding_num, use_aux, p
             R = TP * 1.0 / (TP + FN)  # Recall
             F = 2 * P * R / (P + R) if (P + R) > 0 else 0  # F1, set to zero to avoid division by zero
             dist_print("F1 score", F)
-            log_dict = {f"{partition}_f1": F, f"{partition}_precision": P, f"{partition}_recall": R}
+            log_dict = {f"eval_metrics/{partition}_f1": F, f"eval_metrics/{partition}_precision": P,
+                        f"eval_metrics/{partition}_recall": R}
             eval_metric = F
         synchronize()
 
     elif dataset == 'TuSimple':
         exp_name = 'tusimple_eval_tmp'
-        run_test_tusimple(net, loader, work_dir, exp_name, griding_num, use_aux)
+        cls_acc_metric = run_test_tusimple(net, loader, work_dir, exp_name, griding_num, use_cls, cls_map)
         synchronize()  # wait for all results
         if is_main_process():
             combine_tusimple_test(work_dir, exp_name)
@@ -169,9 +183,12 @@ def eval_lane(net, dataset, data_root, loader, work_dir, griding_num, use_aux, p
                                             os.path.join(data_root, f'{partition}_label.json'))
             res = json.loads(res)
             eval_metric = res[0]['value']
-            log_dict = {f"{partition}_accuracy": eval_metric}
+            log_dict = {f"eval_metrics/{partition}_accuracy": eval_metric}
             dist_print("Accuracy %.5f" % eval_metric)
         synchronize()
+        if cls_acc_metric is not None:
+            log_dict[f"eval_metrics/{partition}_class_accuracy"] = cls_acc_metric
+            print(f"Class Accuracy: {cls_acc_metric:.5f}")
     else:
         raise NotImplementedError("Only support CULane|TuSimple")
 

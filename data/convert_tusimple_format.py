@@ -12,6 +12,8 @@ import numpy as np
 import json
 import shutil
 
+np.random.seed(0)
+
 
 def calc_k(line):
     """
@@ -67,6 +69,7 @@ def get_wato_list(root):
     names = [l["raw_file"] for l in label_json_all]
     h_samples = [np.array(l['h_sample']) for l in label_json_all]
     lanes = [np.array(l['lanes']) for l in label_json_all]
+    classes = [l['classes'] for l in label_json_all]
 
     line_txt = []
     for i in range(len(lanes)):
@@ -81,10 +84,10 @@ def get_wato_list(root):
             line_txt_i.append(line_txt_tmp)
         line_txt.append(line_txt_i)
 
-    return names, line_txt
+    return names, line_txt, classes
 
 
-def get_tusimple_list(root, label_list):
+def get_tusimple_list(root, label_list, get_classes=True):
     """
     Get all the files' names from the json annotation
     """
@@ -97,6 +100,9 @@ def get_tusimple_list(root, label_list):
     names = [l['raw_file'] for l in label_json_all]
     h_samples = [np.array(l['h_samples']) for l in label_json_all]
     lanes = [np.array(l['lanes']) for l in label_json_all]
+    classes = None
+    if get_classes:
+        classes = [[int(c) for c in l['classes'].split()] for l in label_json_all]
 
     line_txt = []
     for i in range(len(lanes)):
@@ -111,10 +117,10 @@ def get_tusimple_list(root, label_list):
             line_txt_i.append(line_txt_tmp)
         line_txt.append(line_txt_i)
 
-    return names, line_txt, label_json_all
+    return names, line_txt, classes, label_json_all
 
 
-def generate_segmentation_and_train_list(root, line_txt, names, image_size=(720, 1280), num_val=0):
+def generate_segmentation_and_train_list(root, line_txt, names, classes, image_size=(720, 1280), num_val=0):
     """
     The lane annotations of the Tusimple dataset is not strictly in order, so we need to find out the correct lane order for segmentation.
     We use the same definition as CULane, in which the four lanes from left to right are represented as 1,2,3,4 in segentation label respectively.
@@ -146,40 +152,51 @@ def generate_segmentation_and_train_list(root, line_txt, names, image_size=(720,
         label_path = names[i][:-3] + 'png'
         label = np.zeros(image_size, dtype=np.uint8)
         bin_label = [0, 0, 0, 0]
+        class_label = [0, 0, 0, 0]
         if len(k_neg) == 1:  # for only one lane in the left
             which_lane = np.where(ks == k_neg[0])[0][0]
+            class_label[1] = classes[i][which_lane]
             draw(label, lines[which_lane], 2)
             bin_label[1] = 1
         elif len(k_neg) == 2:  # for two lanes in the left
             which_lane = np.where(ks == k_neg[1])[0][0]
+            class_label[0] = classes[i][which_lane]
             draw(label, lines[which_lane], 1)
             which_lane = np.where(ks == k_neg[0])[0][0]
+            class_label[1] = classes[i][which_lane]
             draw(label, lines[which_lane], 2)
             bin_label[0] = 1
             bin_label[1] = 1
         elif len(k_neg) > 2:  # for more than two lanes in the left,
             which_lane = np.where(ks == k_neg[1])[0][0]  # we only choose the two lanes that are closest to the center
+            class_label[0] = classes[i][which_lane]
             draw(label, lines[which_lane], 1)
             which_lane = np.where(ks == k_neg[0])[0][0]
+            class_label[1] = classes[i][which_lane]
             draw(label, lines[which_lane], 2)
             bin_label[0] = 1
             bin_label[1] = 1
 
         if len(k_pos) == 1:  # For the lanes in the right, the same logical is adopted.
             which_lane = np.where(ks == k_pos[0])[0][0]
+            class_label[2] = classes[i][which_lane]
             draw(label, lines[which_lane], 3)
             bin_label[2] = 1
         elif len(k_pos) == 2:
             which_lane = np.where(ks == k_pos[1])[0][0]
+            class_label[2] = classes[i][which_lane]
             draw(label, lines[which_lane], 3)
             which_lane = np.where(ks == k_pos[0])[0][0]
+            class_label[3] = classes[i][which_lane]
             draw(label, lines[which_lane], 4)
             bin_label[2] = 1
             bin_label[3] = 1
         elif len(k_pos) > 2:
             which_lane = np.where(ks == k_pos[-1])[0][0]
+            class_label[2] = classes[i][which_lane]
             draw(label, lines[which_lane], 3)
             which_lane = np.where(ks == k_pos[-2])[0][0]
+            class_label[3] = classes[i][which_lane]
             draw(label, lines[which_lane], 4)
             bin_label[2] = 1
             bin_label[3] = 1
@@ -187,9 +204,10 @@ def generate_segmentation_and_train_list(root, line_txt, names, image_size=(720,
         cv2.imwrite(os.path.join(root, label_path), label)
 
         if i in val_idx:
-            val_names.write(names[i] + '\n')
+            val_names.write(names[i] + ' ' + ' '.join(list(map(str, class_label))) + '\n')
         else:
-            train_gt_fp.write(names[i] + ' ' + label_path + ' ' + ' '.join(list(map(str, bin_label))) + '\n')
+            train_gt_fp.write(names[i] + ' ' + label_path + ' ' + ' '.join(list(map(str, bin_label))) + ' ' + ' '.join(
+                list(map(str, class_label))) + '\n')
 
     train_gt_fp.close()
     if num_val > 0:
@@ -225,16 +243,17 @@ if __name__ == "__main__":
 
     if args.dataset == "WATO":
         # wato only has training, we don't need testing for simulation
-        names, line_txt = get_wato_list(args.root)
+        names, line_txt, classes = get_wato_list(args.root)
         image_size = [int(x) for x in args.res.split('x')]
-        generate_segmentation_and_train_list(args.root, line_txt, names, image_size=image_size)
+        generate_segmentation_and_train_list(args.root, line_txt, names, classes, image_size=image_size)
     else:
         # training set
-        names, line_txt, label_json_all = get_tusimple_list(args.root, ['label_data_0601.json',
-                                                                        'label_data_0531.json',
-                                                                        'label_data_0313.json'])
+        names, line_txt, classes, label_json_all = get_tusimple_list(args.root, ['label_data_0601_withclasses.json',
+                                                                                 'label_data_0531_withclasses.json',
+                                                                                 'label_data_0313_withclasses.json'])
+
         # generate segmentation and training list for training
-        val_idx = generate_segmentation_and_train_list(args.root, line_txt, names, num_val=358)
+        val_idx = generate_segmentation_and_train_list(args.root, line_txt, names, classes, num_val=358)
 
         # write validation labels to be used in eval_wrapper
         val_label_json = [label_json_all[i] for i in val_idx]
@@ -243,7 +262,7 @@ if __name__ == "__main__":
             fp.write('\n'.join(json.dumps(label) for label in val_label_json))
 
         # testing set
-        names, line_txt, _ = get_tusimple_list(args.root, ['test_tasks_0627.json'])
+        names, _, _, _ = get_tusimple_list(args.root, ['test_tasks_0627.json'], False)
         # generate testing set for testing
         with open(os.path.join(args.root, 'list/test.txt'), 'w') as fp:
             for name in names:

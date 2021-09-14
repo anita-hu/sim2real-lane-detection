@@ -7,6 +7,7 @@ import os
 import pdb
 import numpy as np
 from data.mytransforms import find_start_pos
+from data import constants
 
 
 def loader_func(path):
@@ -14,33 +15,43 @@ def loader_func(path):
 
 
 class LaneTestDataset(torch.utils.data.Dataset):
-    def __init__(self, path, list_path, img_transform=None):
+    def __init__(self, path, list_path, img_transform=None, use_cls=False):
         super(LaneTestDataset, self).__init__()
         self.path = path
         self.img_transform = img_transform
+        self.use_cls = use_cls
         with open(list_path, 'r') as f:
             self.list = f.readlines()
         self.list = [l[1:] if l[0] == '/' else l for l in self.list]  # exclude the incorrect path prefix '/' of CULane
 
     def __getitem__(self, index):
-        name = self.list[index].split()[0]
+        l_info = self.list[index].split()
+        name = l_info[0]
+
         img_path = os.path.join(self.path, name)
         img = loader_func(img_path)
 
         if self.img_transform is not None:
             img = self.img_transform(img)
 
-        return img, name
+        if self.use_cls:
+            # Get classification labels from list
+            cls_label = np.array(l_info[-4:]).astype(int)
+        else:
+            # can't return None from dataloader so use an empty list
+            cls_label = []
+
+        return img, name, cls_label
 
     def __len__(self):
         return len(self.list)
 
 
-class LaneClsDataset(torch.utils.data.Dataset):
+class LaneDataset(torch.utils.data.Dataset):
     def __init__(self, path, list_path, img_transform=None, target_transform=None, simu_transform=None, griding_num=50,
                  image_dim=(288, 800), row_anchor=None, use_aux=False, segment_transform=None, num_lanes=4,
-                 return_label=False):
-        super(LaneClsDataset, self).__init__()
+                 use_cls=False, return_label=False):
+        super(LaneDataset, self).__init__()
         self.img_transform = img_transform
         self.target_transform = target_transform
         self.segment_transform = segment_transform
@@ -49,6 +60,7 @@ class LaneClsDataset(torch.utils.data.Dataset):
         self.griding_num = griding_num
         self.use_aux = use_aux
         self.num_lanes = num_lanes
+        self.use_cls = use_cls
         self.return_label = return_label
         self.resize_dim = image_dim
 
@@ -73,18 +85,30 @@ class LaneClsDataset(torch.utils.data.Dataset):
         img_path = os.path.join(self.path, img_name)
         img = loader_func(img_path)
 
+        if self.use_cls:
+            # get classification labels from list
+            cls_label_list = list(map(int, l_info[-4:]))
+            cls_label = np.array(cls_label_list)
+        else:
+            # can't return None from dataloader so use an empty list
+            cls_label = []
+
         if self.simu_transform is not None:
             img, label = self.simu_transform(img, label)
-        lane_pts = self._get_index(label)
 
         # get the coordinates of lanes at row anchors
+        lane_pts = self._get_index(label)
 
+        # make the coordinates to detection label
         w, h = img.size
-        cls_label = self._grid_pts(lane_pts, self.griding_num, w)
-        # make the coordinates to classification label
+        det_label = self._grid_pts(lane_pts, self.griding_num, w)
+
         if self.use_aux:
             assert self.segment_transform is not None
             seg_label = self.segment_transform(label)
+        else:
+            # can't return None from dataloader so use an empty list
+            seg_label = []
 
         if self.img_transform is not None:
             img = self.img_transform(img)
@@ -93,9 +117,7 @@ class LaneClsDataset(torch.utils.data.Dataset):
         if not self.return_label:
             return img
 
-        if self.use_aux:
-            return img, cls_label, seg_label
-        return img, cls_label
+        return img, det_label, cls_label, seg_label
 
     def __len__(self):
         return len(self.list)
