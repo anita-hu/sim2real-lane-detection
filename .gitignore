@@ -3,7 +3,9 @@ datasets
 logs
 outputs
 
+models/*
 *.pth  # models (files are too large)
+
 
 # weights and biases logging
 wandb/
