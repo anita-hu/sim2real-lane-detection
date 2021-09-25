@@ -9,6 +9,26 @@ import torch
 
 # ===============================img tranforms============================
 
+class UnNormalize(object):
+    """
+    https://discuss.pytorch.org/t/simple-way-to-inverse-transform-normalization/4821/2
+    """
+    def __init__(self, mean, std):
+        self.mean = mean
+        self.std = std
+
+    def __call__(self, tensor):
+        """
+        Args:
+            tensor (Tensor): Tensor image of size (C, H, W) to be normalized.
+        Returns:
+            Tensor: Normalized image.
+        """
+        for t, m, s in zip(tensor, self.mean, self.std):
+            t.mul_(s).add_(m)
+            # The normalize code -> t.sub_(m).div_(s)
+        return tensor
+
 class Compose2(object):
     def __init__(self, transforms):
         self.transforms = transforms
@@ -72,7 +92,11 @@ class RandomRotate(object):
         self.angle = angle
 
     def __call__(self, image, label):
-        assert label is None or image.size == label.size
+        if label is None:
+            pass
+        elif label is not None and label.size != image.size:
+            # if there's a size mismatch, then  fix it before rotating
+            label.resize(image.size, Image.BILINEAR)
 
         angle = random.randint(0, self.angle * 2) - self.angle
 

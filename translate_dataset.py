@@ -11,28 +11,30 @@ from data.dataset import DatasetConverter
 from trainers import MUNIT_Trainer, UNIT_Trainer, Baseline_Trainer, ADA_Trainer
 from utils import prepare_sub_folder, write_loss, get_config, write_2images, Timer
 import torchvision.transforms as transforms
+from data.mytransforms import UnNormalize
 from torchvision.utils import save_image
 import torch
 import argparse
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', type=str, default='configs/tusimple/munit_s2r.yaml', help='Path to the config file.')
 parser.add_argument('--new_data_folder', type=str, help='root folder to generate the new dataset.')
 parser.add_argument('--checkpoint_dir', type=str, help='directory containing model weights, in .pt files')
-parser.add_argument('--output_path', type=str, default='.', help="outputs path")
+parser.add_argument('--vgg_model_path', type=str, default='.', help="parent folder of vgg model.pth")
 opts = parser.parse_args()
 
 config = get_config(opts.config)
-config['vgg_model_path'] = opts.output_path
+config['vgg_model_path'] = opts.vgg_model_path
 
 # clone the dataset folder
 
 dataset_root = config["dataA_root"]
 new_dataset = opts.new_data_folder
 
-# print("making a copy of the dataset")
-# os.system(f"cp -r {dataset_root} {new_dataset}")
-# print("done copying the dataset")
+print("making a copy of the dataset")
+os.system(f"cp -r {dataset_root} {new_dataset}")
+print("done copying the dataset")
 
 # Setup model
 
@@ -70,22 +72,20 @@ dataset_to_translate = DatasetConverter(new_dataset,
                                 row_anchor=get_tusimple_row_anchor(image_dim[0]),
                                return_label=False)
 
-iterator = torch.utils.data.DataLoader(dataset_to_translate)
+dataset_root = config["dataA_root"]
+iterator = torch.utils.data.DataLoader(dataset_to_translate, batch_size=config["batch_size"],
+                                       drop_last=True)
 
-def unnormalize(image):
-    # multiply by the previous stddev, then add add the mean back
-    image.squeeze()
-    image = image * (0.229, 0.224, 0.225)
-    image = image + (0.485, 0.456, 0.406)
-    return image
+unorm = UnNormalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
 
 print("starting conversion")
 with torch.no_grad():
-    for el in iterator:
-        image, label, image_path = el
-        sim2real, real2sim = trainer.forward(image.cuda(), image.cuda())
-        image_tensor = unnormalize(sim2real)
-        save_image(image_tensor.cpu(), image_path)  # overwrite
+    for el in tqdm(iterator):
+        images, labels, image_paths = el
+        sim2real, real2sim = trainer.forward(images.cuda(), images.cuda())
+        for i, image_path in enumerate(image_paths):
+            image_tensor = unorm(sim2real[i])
+            save_image(image_tensor.cpu(), image_path)  # overwrite
 
 
 
