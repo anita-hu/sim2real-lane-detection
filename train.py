@@ -43,7 +43,6 @@ wandb.init(entity=opts.entity, project=opts.project, config=config)
 torch.manual_seed(config["random_seed"])
 torch.backends.cudnn.deterministic = True
 
-sim_trans = not baseline
 # Setup data loaders
 # NOTE: By convention, dataset A will be simulation, labelled data, while dataset B will be real-world without labels
 print(f"Loading dataset A (labelled, simulated) from {config['dataA_root']}")
@@ -52,7 +51,7 @@ train_loader_a = get_train_loader(config["batch_size"], config["dataA_root"],
                                   use_aux=config["lane"]["use_aux"], distributed=False,
                                   num_lanes=config["lane"]["num_lanes"], baseline=baseline,
                                   image_dim=(config["input_height"], config["input_width"]),
-                                  return_label=True, sim_trans=sim_trans)
+                                  return_label=True, sim_trans=True)
 
 print(f"Loading dataset B (unlabelled, real-world) from {config['dataB_root']}")
 train_loader_b = get_train_loader(config["batch_size"], config["dataB_root"],

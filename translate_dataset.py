@@ -14,6 +14,7 @@ import torchvision.transforms as transforms
 from data.mytransforms import UnNormalize
 from torchvision.utils import save_image
 import torch
+import torch.nn as nn
 import argparse
 from tqdm import tqdm
 
@@ -65,8 +66,8 @@ img_transform = transforms.Compose([
 def get_tusimple_row_anchor(image_height):
     return [int((160+i*10)/720*image_height) for i in range(56)]
 
-dataset_to_translate = DatasetConverter(new_dataset,
-                               os.path.join(new_dataset, 'list/train_gt.txt'),
+dataset_to_translate = DatasetConverter(new_dataset + "WATO_TuSimple",
+                               os.path.join(new_dataset, 'WATO_TuSimple/list/train_gt.txt'),
                                img_transform=img_transform,
                                image_dim=image_dim,
                                 row_anchor=get_tusimple_row_anchor(image_dim[0]),
@@ -79,12 +80,15 @@ iterator = torch.utils.data.DataLoader(dataset_to_translate, batch_size=config["
 unorm = UnNormalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
 
 print("starting conversion")
+upsample = nn.Upsample(size=(720, 1280), mode='nearest')
 with torch.no_grad():
     for el in tqdm(iterator):
         images, labels, image_paths = el
         sim2real, real2sim = trainer.forward(images.cuda(), images.cuda())
         for i, image_path in enumerate(image_paths):
             image_tensor = unorm(sim2real[i])
+            ## resize here
+            # image_tensor = upsample(image_tensor.unsqueeze(0)).squeeze()
             save_image(image_tensor.cpu(), image_path)  # overwrite
 
 

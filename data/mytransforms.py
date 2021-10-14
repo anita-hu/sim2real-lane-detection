@@ -94,7 +94,7 @@ class RandomRotate(object):
     def __call__(self, image, label):
         if label is None:
             pass
-        elif label is not None and label.size != image.size:
+        elif label is not None:
             # if there's a size mismatch, then  fix it before rotating
             label.resize(image.size, Image.BILINEAR)
 
@@ -143,6 +143,9 @@ def find_start_pos(row_sample, start_line):
 
 
 class RandomLROffsetLABEL(object):
+    """
+    Offsets the image and label randomly left and right.
+    """
     def __init__(self, max_offset):
         self.max_offset = max_offset
 
@@ -171,6 +174,9 @@ class RandomLROffsetLABEL(object):
 
 
 class RandomUDoffsetLABEL(object):
+    """
+    Offsets the image and label randomly up and down
+    """
     def __init__(self, max_offset):
         self.max_offset = max_offset
 
