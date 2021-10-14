@@ -87,8 +87,7 @@ with torch.no_grad():
         sim2real, real2sim = trainer.forward(images.cuda(), images.cuda())
         for i, image_path in enumerate(image_paths):
             image_tensor = unorm(sim2real[i])
-            ## resize here
-            # image_tensor = upsample(image_tensor.unsqueeze(0)).squeeze()
+            image_tensor = upsample(image_tensor.unsqueeze(0)).squeeze()
             save_image(image_tensor.cpu(), image_path)  # overwrite
 
 
