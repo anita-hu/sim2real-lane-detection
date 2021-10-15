@@ -36,7 +36,7 @@ def generate_video_demo(model, dataloader: torch.utils.data.DataLoader,
 
     print(f"writing output to {outfile}.")
     for i, data in enumerate(tqdm.tqdm(dataloader)):
-        imgs, names = data
+        imgs, names, _ = data
         imgs = imgs.cuda()
         with torch.no_grad():
             out = model.eval_lanes(imgs)  # finally, run the images through the model.

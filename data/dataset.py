@@ -7,15 +7,10 @@ import os
 import pdb
 import numpy as np
 from data.mytransforms import find_start_pos
-from data import constants
-
-
-def loader_func(path):
-    return Image.open(path)
 
 
 class LaneTestDataset(torch.utils.data.Dataset):
-    def __init__(self, path, list_path, img_transform=None, use_cls=False):
+    def __init__(self, path, list_path, row_anchor, img_transform=None, use_cls=False):
         super(LaneTestDataset, self).__init__()
         self.path = path
         self.img_transform = img_transform
@@ -23,13 +18,14 @@ class LaneTestDataset(torch.utils.data.Dataset):
         with open(list_path, 'r') as f:
             self.list = f.readlines()
         self.list = [l[1:] if l[0] == '/' else l for l in self.list]  # exclude the incorrect path prefix '/' of CULane
+        self.row_anchor = row_anchor
 
     def __getitem__(self, index):
         l_info = self.list[index].split()
         name = l_info[0]
 
         img_path = os.path.join(self.path, name)
-        img = loader_func(img_path)
+        img = Image.open(img_path)
 
         if self.img_transform is not None:
             img = self.img_transform(img)
@@ -80,10 +76,10 @@ class LaneDataset(torch.utils.data.Dataset):
             label_name = label_name[1:]
 
         label_path = os.path.join(self.path, label_name)
-        label = loader_func(label_path)
+        label = Image.open(label_path)
 
         img_path = os.path.join(self.path, img_name)
-        img = loader_func(img_path)
+        img = Image.open(img_path)
 
         if self.use_cls:
             # get classification labels from list
@@ -117,7 +113,7 @@ class LaneDataset(torch.utils.data.Dataset):
         if not self.return_label:
             return img
 
-        return img, det_label, cls_label, seg_label
+        return img, det_label, cls_label, seg_label, img_name
 
     def __len__(self):
         return len(self.list)

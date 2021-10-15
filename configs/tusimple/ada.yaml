@@ -3,6 +3,8 @@
 
 # logger options
 log_iter: 200                 # How often do you want to log loss and learning rate values during training
+image_save_epoch: 1           # How often do you want to save output images during training
+display_size: 4               # How many images do you want to display each time
 
 # optimization options
 max_epoch: 100                # maximum number of training epochs
