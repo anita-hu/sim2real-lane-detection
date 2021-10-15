@@ -104,33 +104,14 @@ else:
 
 trainer.cuda()
 
-
-### lane viz: display train preds on datasetA (simulation), display val preds on datasetB (real-world)
+# Example images for wandb display
 display_size = config['display_size']
-#if not no_adv_gen:
 train_display_images_a = torch.stack([train_loader_a.dataset[i][0] for i in range(display_size)]).cuda()
 train_names_a = [train_loader_a.dataset[i][4] for i in range(display_size)]
-train_display_images_b = torch.stack([train_loader_b.dataset[i] for i in range(display_size)]).cuda()
 test_display_images_b = torch.stack([val_loader_b.dataset[i][0] for i in range(display_size)]).cuda()
 test_names_b = [val_loader_b.dataset[i][1] for i in range(display_size)]
-
-# #############
-# with torch.no_grad():
-#     train_preds = trainer.eval_lanes_a(train_display_images_a)
-
-# train_viz = viz_lanes(
-#     det_out=train_preds[0],
-#     seg_out=train_preds[2],
-#     dataset_root=config['dataA_root'],
-#     names=train_names_a,
-#     model_in_dims=(config['input_width'], config['input_height']),
-#     griding_num=config['lane']['griding_num'],
-#     row_anchor=train_loader_a.dataset.row_anchor,
-#     num_lanes=config["lane"]["num_lanes"]
-# )
-
-# write_lane_images(train_viz, display_size, 3, 'train', step=5)
-# sys.exit()
+if not no_adv_gen:
+    train_display_images_b = torch.stack([train_loader_b.dataset[i] for i in range(display_size)]).cuda()
 
 # Setup logger and output folders
 model_name = os.path.splitext(os.path.basename(opts.config))[0]
