@@ -49,7 +49,7 @@ def make_grid(image_outputs, display_image_num):
 def write_lane_images(images, display_num, epoch, postfix, step=None):
     image_grid = vutils.make_grid(images.data, nrow=display_num, padding=0)
     imgs = wandb.Image(image_grid)
-    wandb.log({f"lanes_{postfix}": imgs, "epoch": epoch}, step=step)
+    wandb.log({f"lane_viz_{postfix}": imgs, "epoch": epoch}, step=step)
 
 
 def write_translation_images(image_outputs, display_image_num, epoch, postfix, step=None):
