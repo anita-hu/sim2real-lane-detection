@@ -80,6 +80,9 @@ class ADA_Trainer(nn.Module):
         self.train()
         return preds
 
+    def eval_lanes_a(self, x):
+        return self.eval_lanes(x)
+
     def reset_metrics(self):
         reset_metrics(self.metric_dict)
 

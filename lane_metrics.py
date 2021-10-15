@@ -23,40 +23,30 @@
 
 import numpy as np
 import torch
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+from matplotlib import pyplot as plt
+import wandb
+
+from data.constants import display_names
 
 
 def get_metric_dict(hyperparameters):
-    if hyperparameters["use_aux"] and hyperparameters["use_cls"]:
-        metric_dict = {
-            'name': ['top1', 'top2', 'top3', 'cls_acc', 'iou'],
-            'op': [MultiLabelAcc(), AccTopk(hyperparameters["griding_num"], 2),
-                   AccTopk(hyperparameters["griding_num"], 3), ClassAcc(), Metric_mIoU(hyperparameters["num_lanes"] + 1)],
-            'data_src': [('det_out', 'det_label'), ('det_out', 'det_label'), ('det_out', 'det_label'),
-                         ('cls_out', 'cls_label'), ('seg_out', 'seg_label')]
-        }
-    elif hyperparameters["use_aux"]:
-        metric_dict = {
-            'name': ['top1', 'top2', 'top3', 'iou'],
-            'op': [MultiLabelAcc(), AccTopk(hyperparameters["griding_num"], 2),
-                   AccTopk(hyperparameters["griding_num"], 3), Metric_mIoU(hyperparameters["num_lanes"] + 1)],
-            'data_src': [('det_out', 'det_label'), ('det_out', 'det_label'), ('det_out', 'det_label'),
-                         ('seg_out', 'seg_label')]
-        }
-    elif hyperparameters["use_cls"]:
-        metric_dict = {
-            'name': ['top1', 'top2', 'top3', 'cls_acc'],
-            'op': [MultiLabelAcc(), AccTopk(hyperparameters["griding_num"], 2),
-                   AccTopk(hyperparameters["griding_num"], 3), ClassAcc()],
-            'data_src': [('det_out', 'det_label'), ('det_out', 'det_label'), ('det_out', 'det_label'),
-                         ('cls_out', 'cls_label')]
-        }
-    else:
-        metric_dict = {
-            'name': ['top1', 'top2', 'top3'],
-            'op': [MultiLabelAcc(), AccTopk(hyperparameters["griding_num"], 2),
-                   AccTopk(hyperparameters["griding_num"], 3)],
-            'data_src': [('det_out', 'det_label'), ('det_out', 'det_label'), ('det_out', 'det_label')]
-        }
+    metric_dict = {
+        'name': ['top1', 'top2', 'top3'],
+        'op': [MultiLabelAcc(), AccTopk(hyperparameters["griding_num"], 2),
+                AccTopk(hyperparameters["griding_num"], 3)],
+        'data_src': [('det_out', 'det_label'), ('det_out', 'det_label'), ('det_out', 'det_label')]
+    }
+
+    if hyperparameters["use_aux"]:
+        metric_dict['name'].extend(['iou'])
+        metric_dict['op'].extend([Metric_mIoU(hyperparameters["num_lanes"] + 1)])
+        metric_dict['data_src'].extend([('seg_out', 'seg_label')])
+
+    if hyperparameters["use_cls"]:
+        metric_dict['name'].extend(['cls_acc', 'conf_mat'])
+        metric_dict['op'].extend([ClassAcc(), ConfusionMatrix(display_names["WATO"])])
+        metric_dict['data_src'].extend([('cls_out', 'cls_label'), ('cls_out', 'cls_label')])
 
     return metric_dict
 
@@ -68,7 +58,6 @@ def converter(data):
 
 
 def fast_hist(label_pred, label_true, num_classes):
-    # pdb.set_trace()
     hist = np.bincount(num_classes * label_true.astype(int) + label_pred, minlength=num_classes ** 2)
     hist = hist.reshape(num_classes, num_classes)
     return hist
@@ -168,6 +157,36 @@ class ClassAcc:
 
     def get(self):
         return self.num_true / (self.num_true + self.num_false)
+
+
+class ConfusionMatrix:
+    def __init__(self, class_names):
+        self.class_names = class_names
+        self.num_classes = len(class_names)
+        self.conf_mat = np.zeros((self.num_classes, self.num_classes), dtype=int)
+        self.fig, self.ax = plt.subplots()
+
+    def reset(self):
+        self.conf_mat = np.zeros((self.num_classes, self.num_classes), dtype=int)
+        plt.close(self.fig)
+        self.fig, self.ax = plt.subplots()
+
+    def update(self, predict, target):
+        # ('cls_out', 'cls_label') both (batch_size, num_lanes)
+        y_pred = predict.flatten().detach().cpu().numpy()
+        y_true = target.flatten().detach().cpu().numpy()
+
+        # Need to supply list of class IDs to keep conf matrix size constant
+        class_IDs = list(range(self.num_classes))
+
+        self.conf_mat += confusion_matrix(y_true, y_pred, labels=class_IDs)
+
+    def get(self):
+        ConfusionMatrixDisplay(
+            self.conf_mat,
+            display_labels=self.class_names
+        ).plot(include_values=False, xticks_rotation=60, ax=self.ax)
+        return wandb.Image(self.fig)
 
 
 def update_metrics(metric_dict, pair_data):

@@ -69,14 +69,20 @@ def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux,
     return train_loader
 
 
-def get_test_loader(batch_size, data_root, distributed, use_cls, image_dim=(288, 800), partition='test'):
+def get_test_loader(batch_size, data_root, distributed, use_cls, dataset, image_dim=(288, 800), partition='test'):
     img_transforms = transforms.Compose([
         transforms.Resize(image_dim),
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
     ])
     assert partition in ['test', 'val']
-    test_dataset = LaneTestDataset(data_root, os.path.join(data_root, f'list/{partition}.txt'),
+    if dataset == 'CULane':
+        row_anchor = get_culane_row_anchor(image_dim[0])
+    elif dataset == 'TuSimple':
+        row_anchor = get_tusimple_row_anchor(image_dim[0])
+    else:
+        raise NotImplementedError("Only support CULane|TuSimple")
+    test_dataset = LaneTestDataset(data_root, os.path.join(data_root, f'list/{partition}.txt'), row_anchor,
                                    img_transform=img_transforms, use_cls=use_cls)
     if distributed:
         sampler = SeqDistributedSampler(test_dataset, shuffle=False)

@@ -108,6 +108,13 @@ class UNIT_Trainer(nn.Module):
         self.train()
         return preds
 
+    def eval_lanes_a(self, x):
+        self.eval()
+        h_a, _ = self.gen_a.encode(x)
+        preds = self.lane_model(h_a)
+        self.train()
+        return preds
+
     def _compute_kl(self, mu):
         # def _compute_kl(self, mu, sd):
         # mu_2 = torch.pow(mu, 2)
@@ -122,25 +129,29 @@ class UNIT_Trainer(nn.Module):
         reset_metrics(self.metric_dict)
         reset_metrics(self.metric_dict_cyc)
 
-    def _log_lane_metrics(self, metric_dict, preds, labels, postfix):
-        det_label, cls_label, seg_label = labels
-        det_out, cls_out, seg_out = preds
-        if cls_out is not None and seg_out is not None:
-            results = {'det_out': torch.argmax(det_out, dim=1), 'det_label': det_label,
-                       'seg_out': torch.argmax(seg_out, dim=1), 'seg_label': seg_label,
-                       'cls_out': torch.argmax(cls_out, dim=1), 'cls_label': cls_label}
-        elif seg_out is not None:
-            results = {'det_out': torch.argmax(det_out, dim=1), 'det_label': det_label,
-                       'seg_out': torch.argmax(seg_out, dim=1), 'seg_label': seg_label}
-        elif cls_out is not None:
-            results = {'det_out': torch.argmax(det_out, dim=1), 'det_label': det_label,
-                       'cls_out': torch.argmax(cls_out, dim=1), 'cls_label': cls_label}
-        else:
-            results = {'det_out': torch.argmax(det_out, dim=1), 'det_label': det_label}
+    def get_metric_log_dict(self):
+        self._update_metric_log_dict(self.metric_dict, "x_a")
+        self._update_metric_log_dict(self.metric_dict_cyc, "cyc_x_a")
 
-        update_metrics(metric_dict, results)
+        return self.metric_log_dict
+
+    def _update_metric_log_dict(self, metric_dict, postfix):
         for me_name, me_op in zip(metric_dict['name'], metric_dict['op']):
             self.metric_log_dict[f"eval_metrics/lane_metric_{me_name}_{postfix}"] = me_op.get()
+
+    def _log_lane_metrics(self, metric_dict, preds, labels):
+        det_label, cls_label, seg_label = labels
+        det_out, cls_out, seg_out = preds
+
+        results = {'det_out': torch.argmax(det_out, dim=1), 'det_label': det_label}
+        if self.lane_model.use_aux:
+            results['seg_out'] = torch.argmax(seg_out, dim=1)
+            results['seg_label'] = seg_label
+        if self.lane_model.use_cls:
+            results['cls_out'] = torch.argmax(cls_out, dim=1)
+            results['cls_label'] = cls_label
+
+        update_metrics(metric_dict, results)
 
     def _log_lane_losses(self, postfix):
         for k, v in self.lane_loss.current_losses.items():
@@ -174,10 +185,10 @@ class UNIT_Trainer(nn.Module):
             # lane detection loss
             self.total_lane_loss_x_a = self.lane_loss(pred_a, y_a)
             self._log_lane_losses("x_a")
-            self._log_lane_metrics(self.metric_dict, pred_a, y_a, "x_a")
+            self._log_lane_metrics(self.metric_dict, pred_a, y_a)
             self.total_lane_loss_cyc_x_a = self.lane_loss(pred_a_cyc, y_a)
             self._log_lane_losses("cyc_x_a")
-            self._log_lane_metrics(self.metric_dict_cyc, pred_a_cyc, y_a, "cyc_x_a")
+            self._log_lane_metrics(self.metric_dict_cyc, pred_a_cyc, y_a)
             # reconstruction loss
             self.loss_gen_recon_x_a = self._recon_criterion(x_a_recon, x_a)
             self.loss_gen_recon_x_b = self._recon_criterion(x_b_recon, x_b)
