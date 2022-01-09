@@ -8,7 +8,7 @@ import torch
 from utils import get_config
 from trainers import MUNIT_Trainer, UNIT_Trainer, Baseline_Trainer, ADA_Trainer
 from data.dataloader import get_test_loader
-from data.constants import wato2tusimple_class_mapping
+from data.constants import tusimple_2class_mapping, tusimple_3class_mapping
 from evaluation.eval_wrapper import eval_lane
 
 parser = argparse.ArgumentParser()
@@ -25,6 +25,16 @@ torch.manual_seed(config['random_seed'])
 torch.cuda.manual_seed(config['random_seed'])
 torch.backends.cudnn.benchmark = True
 
+# TuSimple class mapping
+val_cls_map = None, None
+if config["lane"]["use_cls"]:
+    if config["lane"]["num_classes"] == 3:
+        val_cls_map = tusimple_2class_mapping
+    elif config["lane"]["num_classes"] == 4:
+        val_cls_map = tusimple_3class_mapping
+    else:
+        sys.exit("Only support 3|4 lane classes, see data/constants.py for mapping")
+
 # Setup model and data loader
 config['vgg_w'] = 0  # do not load vgg model
 config['lane']['use_aux'] = False  # no aux segmentation branch
@@ -38,7 +48,7 @@ elif config['trainer'] == 'Baseline':
 elif config['trainer'] == 'ADA':
     trainer = ADA_Trainer(config)
 else:
-    sys.exit("Only support MUNIT|UNIT|Baseline")
+    sys.exit("Only support MUNIT|UNIT|Baseline|ADA")
 
 state_dict = torch.load(opts.checkpoint)
 # assume gen_a is for simulation data and gen_b is for real data
@@ -93,7 +103,7 @@ if config['dataset'] == 'TuSimple' and config["lane"]["use_cls"]:
         griding_num=config['lane']['griding_num'],
         use_cls=config["lane"]["use_cls"],
         partition='val',
-        cls_map=wato2tusimple_class_mapping
+        label_cls_map=val_cls_map
     )
 
 print("Evaluating on test set")

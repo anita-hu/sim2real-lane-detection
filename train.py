@@ -36,11 +36,11 @@ no_adv_gen = config['trainer'] in ['Baseline', 'ADA']
 config['vgg_model_path'] = opts.output_path
 config["resume"] = opts.resume
 
-# initialize wandb
+# Initialize wandb
 os.environ['WANDB_CONSOLE'] = 'off'
 wandb.init(entity=opts.entity, project=opts.project, config=config)
 
-# set random seed for reproducibility
+# Set random seed for reproducibility
 torch.manual_seed(config["random_seed"])
 torch.backends.cudnn.deterministic = True
 
@@ -85,12 +85,12 @@ val_loader_b = get_test_loader(
 )
 
 # TuSimple class mapping
-pred_cls_map, label_cls_map = None, None
+train_cls_map, val_cls_map = None, None
 if config["lane"]["use_cls"]:
     if config["lane"]["num_classes"] == 3:
-        pred_cls_map, label_cls_map = wato_2class_mapping, tusimple_2class_mapping
+        train_cls_map, val_cls_map = wato_2class_mapping, tusimple_2class_mapping
     elif config["lane"]["num_classes"] == 4:
-        pred_cls_map, label_cls_map = wato_3class_mapping, tusimple_3class_mapping
+        train_cls_map, val_cls_map = wato_3class_mapping, tusimple_3class_mapping
     else:
         sys.exit("Only support 3|4 lane classes, see data/constants.py for mapping")
 
@@ -109,6 +109,7 @@ else:
 
 trainer.cuda()
 
+# Sample images for GAN image logging
 if not no_adv_gen:
     display_size = config['display_size']
     train_display_images_a = torch.stack([train_loader_a.dataset[i][0] for i in range(display_size)]).cuda()
@@ -138,6 +139,11 @@ for epoch in range(start_epoch, config['max_epoch']):
         det_label = det_label.long().cuda()
         cls_label = cls_label.long().cuda() if config["lane"]["use_cls"] else cls_label
         seg_label = seg_label.long().cuda() if config["lane"]["use_aux"] else seg_label
+
+        # Map TuSimple class labels
+        if cls_label and train_cls_map is not None:
+            cls_label = cls_label.apply_(lambda x: train_cls_map[x])
+
         label_a = (det_label, cls_label, seg_label)
 
         # Main training code
@@ -149,6 +155,7 @@ for epoch in range(start_epoch, config['max_epoch']):
 
         torch.cuda.synchronize()
 
+        # Log train loss and lr
         if (iterations + 1) % config['log_iter'] == 0:
             write_loss(iterations + 1, trainer)
 
@@ -162,13 +169,13 @@ for epoch in range(start_epoch, config['max_epoch']):
         trainer.update_learning_rate()
         iterations += 1
 
-    # Write train metrics
+    # Log train metrics
     log_dict = trainer.metric_log_dict
     log_dict["epoch"] = epoch + 1
     wandb.log(log_dict, step=iterations)
     trainer.reset_metrics()
 
-    # Write images
+    # Log GAN images
     if not no_adv_gen and (epoch + 1) % config['image_save_epoch'] == 0:
         with torch.no_grad():
             test_image_outputs = trainer.sample(train_display_images_a, test_display_images_b)
@@ -176,11 +183,12 @@ for epoch in range(start_epoch, config['max_epoch']):
         write_2images(test_image_outputs, display_size, epoch + 1, 'test', step=iterations)
         write_2images(train_image_outputs, display_size, epoch + 1, 'train', step=iterations)
 
+    # Run validation
     print("Validating epoch", epoch + 1)
     with Timer("Elapsed time in validation: %f"):
         log_dict, val_metric = eval_lane(trainer, config['dataset'], config['dataB_root'], val_loader_b,
                                          output_directory, config['lane']['griding_num'],
-                                         config['lane']['use_cls'], "val", pred_cls_map, label_cls_map)
+                                         config['lane']['use_cls'], "val", val_cls_map)
 
     log_dict["epoch"] = epoch + 1
     wandb.log(log_dict, step=iterations)
