@@ -82,7 +82,7 @@ def generate_tusimple_lines(out, shape, griding_num, localization_type='rel'):
     return lanes
 
 
-def run_test_tusimple(net, loader, work_dir, exp_name, griding_num, use_cls, label_cls_map):
+def run_test_tusimple(net, loader, work_dir, exp_name, griding_num, use_cls):
     output_path = os.path.join(work_dir, exp_name + '.%d.txt' % get_rank())
     fp = open(output_path, 'w')
 
@@ -97,8 +97,6 @@ def run_test_tusimple(net, loader, work_dir, exp_name, griding_num, use_cls, lab
             det_out, cls_out, _ = net.eval_lanes(imgs)
             if use_cls:
                 cls_label = cls_label.long()
-                if label_cls_map is not None:
-                    cls_label = cls_label.apply_(lambda x: label_cls_map[x])
                 cls_pred = torch.argmax(cls_out, dim=1).cpu()
                 metric.update(cls_pred, cls_label)
         for i, name in enumerate(names):
@@ -144,7 +142,7 @@ def combine_tusimple_test(work_dir, exp_name):
         fp.writelines(all_res_no_dup)
 
 
-def eval_lane(net, dataset, data_root, loader, work_dir, griding_num, use_cls, partition="test", label_cls_map=None):
+def eval_lane(net, dataset, data_root, loader, work_dir, griding_num, use_cls, partition="test"):
     net.eval()
     eval_metric = None
     log_dict = None
@@ -176,7 +174,7 @@ def eval_lane(net, dataset, data_root, loader, work_dir, griding_num, use_cls, p
 
     elif dataset == 'TuSimple':
         exp_name = 'tusimple_eval_tmp'
-        cls_acc_metric = run_test_tusimple(net, loader, work_dir, exp_name, griding_num, use_cls, label_cls_map)
+        cls_acc_metric = run_test_tusimple(net, loader, work_dir, exp_name, griding_num, use_cls)
         synchronize()  # wait for all results
         if is_main_process():
             combine_tusimple_test(work_dir, exp_name)

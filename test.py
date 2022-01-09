@@ -91,7 +91,8 @@ if config['dataset'] == 'TuSimple' and config["lane"]["use_cls"]:
         distributed=False,
         use_cls=config["lane"]["use_cls"],
         image_dim=(config["input_height"], config["input_width"]),
-        partition="val"
+        partition="val",
+        cls_map=val_cls_map
     )
 
     eval_lane(
@@ -102,8 +103,7 @@ if config['dataset'] == 'TuSimple' and config["lane"]["use_cls"]:
         work_dir=opts.output_folder,
         griding_num=config['lane']['griding_num'],
         use_cls=config["lane"]["use_cls"],
-        partition='val',
-        label_cls_map=val_cls_map
+        partition='val'
     )
 
 print("Evaluating on test set")

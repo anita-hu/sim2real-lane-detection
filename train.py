@@ -44,6 +44,16 @@ wandb.init(entity=opts.entity, project=opts.project, config=config)
 torch.manual_seed(config["random_seed"])
 torch.backends.cudnn.deterministic = True
 
+# TuSimple class mapping
+train_cls_map, val_cls_map = None, None
+if config["lane"]["use_cls"]:
+    if config["lane"]["num_classes"] == 3:
+        train_cls_map, val_cls_map = wato_2class_mapping, tusimple_2class_mapping
+    elif config["lane"]["num_classes"] == 4:
+        train_cls_map, val_cls_map = wato_3class_mapping, tusimple_3class_mapping
+    else:
+        sys.exit("Only support 3|4 lane classes, see data/constants.py for mapping")
+
 # Setup data loaders
 # NOTE: By convention, dataset A will be simulation, labelled data, while dataset B will be real-world without labels
 print(f"Loading dataset A (labelled, simulated) from {config['dataA_root']}")
@@ -58,7 +68,8 @@ train_loader_a = get_train_loader(
     use_cls=config["lane"]["use_cls"],
     baseline=baseline,
     image_dim=(config["input_height"], config["input_width"]),
-    return_label=True
+    return_label=True,
+    cls_map=train_cls_map
 )
 
 print(f"Loading dataset B (unlabelled, real-world) from {config['dataB_root']}")
@@ -81,18 +92,9 @@ val_loader_b = get_test_loader(
     distributed=False,
     use_cls=config["lane"]["use_cls"],
     image_dim=(config["input_height"], config["input_width"]),
-    partition="val"
+    partition="val",
+    cls_map=val_cls_map,
 )
-
-# TuSimple class mapping
-train_cls_map, val_cls_map = None, None
-if config["lane"]["use_cls"]:
-    if config["lane"]["num_classes"] == 3:
-        train_cls_map, val_cls_map = wato_2class_mapping, tusimple_2class_mapping
-    elif config["lane"]["num_classes"] == 4:
-        train_cls_map, val_cls_map = wato_3class_mapping, tusimple_3class_mapping
-    else:
-        sys.exit("Only support 3|4 lane classes, see data/constants.py for mapping")
 
 # Setup model
 print(f"Loading {config['trainer']} trainer")
@@ -139,10 +141,6 @@ for epoch in range(start_epoch, config['max_epoch']):
         det_label = det_label.long().cuda()
         cls_label = cls_label.long().cuda() if config["lane"]["use_cls"] else cls_label
         seg_label = seg_label.long().cuda() if config["lane"]["use_aux"] else seg_label
-
-        # Map TuSimple class labels
-        if cls_label and train_cls_map is not None:
-            cls_label = cls_label.apply_(lambda x: train_cls_map[x])
 
         label_a = (det_label, cls_label, seg_label)
 

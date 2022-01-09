@@ -14,11 +14,12 @@ def loader_func(path):
 
 
 class LaneTestDataset(torch.utils.data.Dataset):
-    def __init__(self, path, list_path, img_transform=None, use_cls=False):
+    def __init__(self, path, list_path, img_transform=None, use_cls=False, cls_map=None):
         super(LaneTestDataset, self).__init__()
         self.path = path
         self.img_transform = img_transform
         self.use_cls = use_cls
+        self.cls_map = cls_map
         with open(list_path, 'r') as f:
             self.list = f.readlines()
         self.list = [l[1:] if l[0] == '/' else l for l in self.list]  # exclude the incorrect path prefix '/' of CULane
@@ -36,6 +37,9 @@ class LaneTestDataset(torch.utils.data.Dataset):
         if self.use_cls:
             # Get classification labels from list
             cls_label = np.array(l_info[-4:]).astype(int)
+            if self.cls_map:
+                map_classes = lambda x: self.cls_map[x]
+                cls_label = map_classes(cls_label)
         else:
             # can't return None from dataloader so use an empty list
             cls_label = []
@@ -49,7 +53,7 @@ class LaneTestDataset(torch.utils.data.Dataset):
 class LaneDataset(torch.utils.data.Dataset):
     def __init__(self, path, list_path, img_transform=None, target_transform=None, simu_transform=None, griding_num=50,
                  image_dim=(288, 800), row_anchor=None, use_aux=False, segment_transform=None, num_lanes=4,
-                 use_cls=False, return_label=False):
+                 use_cls=False, return_label=False, cls_map=None):
         super(LaneDataset, self).__init__()
         self.img_transform = img_transform
         self.target_transform = target_transform
@@ -62,6 +66,7 @@ class LaneDataset(torch.utils.data.Dataset):
         self.use_cls = use_cls
         self.return_label = return_label
         self.resize_dim = image_dim
+        self.cls_map = cls_map
 
         # read the list of files
         with open(list_path, 'r') as f:
@@ -88,6 +93,9 @@ class LaneDataset(torch.utils.data.Dataset):
             # get classification labels from list
             cls_label_list = list(map(int, l_info[-4:]))
             cls_label = np.array(cls_label_list)
+            if self.cls_map:
+                map_classes = lambda x: self.cls_map[x]
+                cls_label = map_classes(cls_label)
         else:
             # can't return None from dataloader so use an empty list
             cls_label = []
