@@ -38,8 +38,7 @@ class LaneTestDataset(torch.utils.data.Dataset):
             # Get classification labels from list
             cls_label = np.array(l_info[-4:]).astype(int)
             if self.cls_map:
-                map_classes = lambda x: self.cls_map[x]
-                cls_label = map_classes(cls_label)
+                cls_label = np.vectorize(self.cls_map.get)(cls_label)
         else:
             # can't return None from dataloader so use an empty list
             cls_label = []
@@ -94,8 +93,7 @@ class LaneDataset(torch.utils.data.Dataset):
             cls_label_list = list(map(int, l_info[-4:]))
             cls_label = np.array(cls_label_list)
             if self.cls_map:
-                map_classes = lambda x: self.cls_map[x]
-                cls_label = map_classes(cls_label)
+                cls_label = np.vectorize(self.cls_map.get)(cls_label)
         else:
             # can't return None from dataloader so use an empty list
             cls_label = []
