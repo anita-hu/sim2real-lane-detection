@@ -70,7 +70,7 @@ lane:
   griding_num: 100            # number of column samples
   num_anchors: 56             # number of row anchors [TuSimple/WATO=56, CULane=18]
   num_lanes: 4                # max number of lanes
-  num_classes: 15             # number of classes to predict
+  num_classes: 3              # number of classes (including no lane class) to predict [3/4]
   sim_loss_w: 1.0             # lane similarity loss
   shp_loss_w: 0.0             # lane shape loss weight
   cls_loss_w: 0.1             # lane classification loss weight

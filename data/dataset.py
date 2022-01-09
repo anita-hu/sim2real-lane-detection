@@ -7,7 +7,6 @@ import os
 import pdb
 import numpy as np
 from data.mytransforms import find_start_pos
-from data import constants
 
 
 def loader_func(path):
