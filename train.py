@@ -186,7 +186,7 @@ for epoch in range(start_epoch, config['max_epoch']):
     with Timer("Elapsed time in validation: %f"):
         log_dict, val_metric = eval_lane(trainer, config['dataset'], config['dataB_root'], val_loader_b,
                                          output_directory, config['lane']['griding_num'],
-                                         config['lane']['use_cls'], "val", val_cls_map)
+                                         config['lane']['use_cls'], "val")
 
     log_dict["epoch"] = epoch + 1
     wandb.log(log_dict, step=iterations)
