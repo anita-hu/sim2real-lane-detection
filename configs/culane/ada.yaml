@@ -10,8 +10,8 @@ batch_size: 16                # batch size
 weight_decay: 0.0001          # weight decay
 beta1: 0.5                    # Adam parameter
 beta2: 0.999                  # Adam parameter
-init: kaiming                 # initialization [gaussian/kaiming/xavier/orthogonal]
-lr_policy: cos                # learning rate scheduler [constant/step/cos]
+init: kaiming                 # initialization [gaussian, kaiming, xavier, orthogonal]
+lr_policy: cos                # learning rate scheduler [constant, step, cos]
 iter_per_epoch: 5555          # iterations per epoch
 gamma: 0.1                    # how much to decay learning rate
 warmup: linear                # warm up type
@@ -23,28 +23,28 @@ multi_gpu: False              # use multi gpu training
 random_seed: 42
 
 # model options
-trainer: ADA                  # trainer [UNIT/MUNIT]
+trainer: ADA                  # trainer [UNIT, MUNIT]
 gen:
   lr: 0.0001                  # initial learning rate
   dim: 64                     # number of filters in the bottommost layer
-  norm: bn                    # normalization layer [none/bn/in/ln/adain]
-  activ: lrelu                # activation function [relu/lrelu/prelu/selu/tanh]
+  norm: bn                    # normalization layer [none, bn, in, ln, adain]
+  activ: lrelu                # activation function [relu, lrelu, prelu, selu, tanh]
   n_res: [2, 2]               # number of residual blocks in content encoder/decoder
-  pad_type: reflect           # padding type [zeros/reflect/replicate]
+  pad_type: reflect           # padding type [zeros, reflect, replicate]
 dis_fea:
   lr: 0.0004                  # initial learning rate
   warmup_iters: 6000          # iterations before introducing feature adversarial loss
   dim: 128                    # number of filters in the bottommost layer
-  norm: none                  # normalization layer [none/bn/in/ln]
-  activ: lrelu                # activation function [relu/lrelu/prelu/selu/tanh]
+  norm: none                  # normalization layer [none, bn, in, ln]
+  activ: lrelu                # activation function [relu, lrelu, prelu, selu, tanh]
   n_layer: 4                  # number of layers in D
-  pad_type: reflect           # padding type [zero/reflect]
+  pad_type: reflect           # padding type [zero, reflect]
 lane:
   lr: 0.0004                  # initial learning rate
-  norm: bn                    # normalization layer [none/bn/in/ln]
-  activ: relu                 # activation function [relu/lrelu/prelu/selu/tanh]
-  use_aux: True               # use segmentation loss [True/False]
-  use_cls: False              # predict lane classes [True/False]
+  norm: bn                    # normalization layer [none, bn, in, ln]
+  activ: relu                 # activation function [relu, lrelu, prelu, selu, tanh]
+  use_aux: True               # use segmentation loss [True, False]
+  use_cls: False              # predict lane classes [True, False]
   det_fc_size: 2048           # size of the detection fc layer
   griding_num: 200            # number of column samples
   num_anchors: 18             # number of row anchors [TuSimple/WATO=56, CULane=18]
@@ -53,12 +53,12 @@ lane:
   shp_loss_w: 0.0             # lane shape loss weight
 
 # data options
-input_dim_a: 3                # number of image channels [1/3]
-input_dim_b: 3                # number of image channels [1/3]
+input_dim_a: 3                # number of image channels [1, 3]
+input_dim_b: 3                # number of image channels [1, 3]
 input_height: 288             # resized image height
 input_width: 800              # resized image width
 
 # By convention, dataset A will be simulation, labelled data, while dataset B will be real-world without labels
-dataset: CULane                       # real-world dataset [CULane/TuSimple]
+dataset: CULane                       # real-world dataset [CULane, TuSimple]
 dataA_root: /datasets/WATO_CULane     # dataset folder location for simulation images with labels
 dataB_root: /datasets/CULane          # dataset folder location for real-world images without labels
