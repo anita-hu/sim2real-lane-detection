@@ -18,7 +18,7 @@ def get_culane_row_anchor(image_height):
 
 def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux,
                      distributed, num_lanes, use_cls, image_dim=(288, 800),
-                     return_label=False, baseline=False):
+                     return_label=False, baseline=False, cls_map=None):
     target_transform = transforms.Compose([
         mytransforms.FreeScaleMask(image_dim),
         mytransforms.MaskToTensor(),
@@ -57,7 +57,8 @@ def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux,
                                 use_aux=use_aux,
                                 num_lanes=num_lanes,
                                 use_cls=use_cls,
-                                return_label=return_label)
+                                return_label=return_label,
+                                cls_map=cls_map)
 
     if distributed:
         sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
@@ -69,7 +70,7 @@ def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux,
     return train_loader
 
 
-def get_test_loader(batch_size, data_root, distributed, use_cls, image_dim=(288, 800), partition='test'):
+def get_test_loader(batch_size, data_root, distributed, use_cls, image_dim=(288, 800), partition='test', cls_map=None):
     img_transforms = transforms.Compose([
         transforms.Resize(image_dim),
         transforms.ToTensor(),
@@ -77,7 +78,7 @@ def get_test_loader(batch_size, data_root, distributed, use_cls, image_dim=(288,
     ])
     assert partition in ['test', 'val']
     test_dataset = LaneTestDataset(data_root, os.path.join(data_root, f'list/{partition}.txt'),
-                                   img_transform=img_transforms, use_cls=use_cls)
+                                   img_transform=img_transforms, use_cls=use_cls, cls_map=cls_map)
     if distributed:
         sampler = SeqDistributedSampler(test_dataset, shuffle=False)
     else:
