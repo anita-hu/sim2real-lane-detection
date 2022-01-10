@@ -52,7 +52,7 @@ if config["lane"]["use_cls"]:
     elif config["lane"]["num_classes"] == 4:
         train_cls_map, val_cls_map = wato_3class_mapping, tusimple_3class_mapping
     else:
-        sys.exit("Only support 3|4 lane classes, see data/constants.py for mapping")
+        raise ValueError("Only support 3|4 lane classes, see data/constants.py for mapping")
 
 # Setup data loaders
 # NOTE: By convention, dataset A will be simulation, labelled data, while dataset B will be real-world without labels
@@ -107,7 +107,7 @@ elif config['trainer'] == 'Baseline':
 elif config['trainer'] == 'ADA':
     trainer = ADA_Trainer(config)
 else:
-    sys.exit("Only support MUNIT|UNIT|Baseline|ADA")
+    raise ValueError("Only support MUNIT|UNIT|Baseline|ADA")
 
 trainer.cuda()
 

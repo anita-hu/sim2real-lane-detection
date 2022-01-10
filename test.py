@@ -33,7 +33,7 @@ if config["lane"]["use_cls"]:
     elif config["lane"]["num_classes"] == 4:
         val_cls_map = tusimple_3class_mapping
     else:
-        sys.exit("Only support 3|4 lane classes, see data/constants.py for mapping")
+        raise ValueError("Only support 3|4 lane classes, see data/constants.py for mapping")
 
 # Setup model and data loader
 config['vgg_w'] = 0  # do not load vgg model
@@ -48,7 +48,7 @@ elif config['trainer'] == 'Baseline':
 elif config['trainer'] == 'ADA':
     trainer = ADA_Trainer(config)
 else:
-    sys.exit("Only support MUNIT|UNIT|Baseline|ADA")
+    raise ValueError("Only support MUNIT|UNIT|Baseline|ADA")
 
 state_dict = torch.load(opts.checkpoint)
 # assume gen_a is for simulation data and gen_b is for real data
