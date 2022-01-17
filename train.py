@@ -51,7 +51,7 @@ train_loader_a = get_train_loader(config["batch_size"], config["dataA_root"],
                                   use_aux=config["lane"]["use_aux"], distributed=False,
                                   num_lanes=config["lane"]["num_lanes"], baseline=baseline,
                                   image_dim=(config["input_height"], config["input_width"]),
-                                  return_label=True, sim_trans=True)
+                                  return_label=True)
 
 print(f"Loading dataset B (unlabelled, real-world) from {config['dataB_root']}")
 train_loader_b = get_train_loader(config["batch_size"], config["dataB_root"],

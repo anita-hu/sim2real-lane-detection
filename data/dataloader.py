@@ -17,7 +17,7 @@ def get_culane_row_anchor(image_height):
 
 
 def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distributed, num_lanes, image_dim=(288, 800),
-                     return_label=False, baseline=False, sim_trans=True):
+                     return_label=False, baseline=False):
     target_transform = transforms.Compose([
         mytransforms.FreeScaleMask(image_dim),
         mytransforms.MaskToTensor(),
@@ -32,15 +32,11 @@ def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distr
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
     ])
-    if sim_trans:
-        simu_transform = mytransforms.Compose2([
-            mytransforms.RandomRotate(6),
-            mytransforms.RandomUDoffsetLABEL(100),
-            mytransforms.RandomLROffsetLABEL(200)
-        ])
-    else:
-        simu_transform = None
-
+    simu_transform = mytransforms.Compose2([
+        mytransforms.RandomRotate(6),
+        mytransforms.RandomUDoffsetLABEL(100),
+        mytransforms.RandomLROffsetLABEL(200)
+    ])
     if dataset == 'CULane':
         row_anchor = get_culane_row_anchor(image_dim[0])
     elif dataset == 'TuSimple':

@@ -42,5 +42,5 @@ input_width: 800              # resized image width
 
 # By convention, dataset A will be simulation, labelled data, while dataset B will be real-world without labels
 dataset: TuSimple                     # real-world dataset [CULane/TuSimple]
-dataA_root: outputs/ds/WATO_TuSimple   # dataset folder location for simulation images with labels
+dataA_root: outputs/ds/munit_s2r_translated_dataset/WATO_TuSimple   # dataset folder location for simulation images with labels
 dataB_root: /datasets/TuSimple  # dataset folder location for real-world images without labels
