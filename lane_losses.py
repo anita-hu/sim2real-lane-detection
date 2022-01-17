@@ -62,33 +62,38 @@ class UltraFastLaneDetectionLoss(nn.Module):
         """
         super(UltraFastLaneDetectionLoss, self).__init__()
         self.use_aux = hyperparameters["use_aux"]
+        self.use_cls = hyperparameters["use_cls"]
+
+        cls_loss_w = 1.0
+        if "cls_loss_w" in hyperparameters:
+            cls_loss_w = hyperparameters["cls_loss_w"]
+
         self.loss_weights = {
-            "cls_loss": 1.0,
+            "det_loss": 1.0,
             "seg_loss": 1.0,
             "sim_loss": hyperparameters["sim_loss_w"],
             "shp_loss": hyperparameters["shp_loss_w"],
+            "cls_loss": cls_loss_w
         }
         self.lane_losses = {
-            "cls_loss": SoftmaxFocalLoss(2),
+            "det_loss": SoftmaxFocalLoss(2),
             "seg_loss": torch.nn.CrossEntropyLoss(),
             "sim_loss": ParsingRelationLoss(),
             "shp_loss": ParsingRelationDis(),
+            "cls_loss": torch.nn.CrossEntropyLoss()
         }
         self.current_losses = None  # for wandb logging
 
     def forward(self, preds, labels):
-        if self.use_aux:
-            cls_out, seg_out = preds
-            cls_label, seg_label = labels
-        else:
-            cls_out = preds
-            cls_label = labels
+        det_label, cls_label, seg_label = labels
+        det_out, cls_out, seg_out = preds
 
         self.current_losses = {
-            "cls_loss": self.lane_losses["cls_loss"](cls_out, cls_label),
+            "det_loss": self.lane_losses["det_loss"](det_out, det_label),
             "seg_loss": self.lane_losses["seg_loss"](seg_out, seg_label) if self.use_aux else 0,
-            "sim_loss": self.lane_losses["sim_loss"](cls_out),
-            "shp_loss": self.lane_losses["shp_loss"](cls_out),
+            "sim_loss": self.lane_losses["sim_loss"](det_out),
+            "shp_loss": self.lane_losses["shp_loss"](det_out),
+            "cls_loss": self.lane_losses["cls_loss"](cls_out, cls_label) if self.use_cls else 0
         }
 
         lane_loss = 0

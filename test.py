@@ -8,6 +8,7 @@ import torch
 from utils import get_config
 from trainers import MUNIT_Trainer, UNIT_Trainer, Baseline_Trainer, ADA_Trainer
 from data.dataloader import get_test_loader
+from data.constants import tusimple_2class_mapping, tusimple_3class_mapping
 from evaluation.eval_wrapper import eval_lane
 
 parser = argparse.ArgumentParser()
@@ -18,12 +19,21 @@ parser.add_argument('--distributed', action='store_true', help="whether use dist
 parser.add_argument('--local_rank', type=int, default=0)
 opts = parser.parse_args()
 
-torch.backends.cudnn.benchmark = True
-
 # Load experiment setting
 config = get_config(opts.config)
 torch.manual_seed(config['random_seed'])
 torch.cuda.manual_seed(config['random_seed'])
+torch.backends.cudnn.benchmark = True
+
+# TuSimple class mapping
+val_cls_map = None, None
+if config["lane"]["use_cls"]:
+    if config["lane"]["num_classes"] == 3:
+        val_cls_map = tusimple_2class_mapping
+    elif config["lane"]["num_classes"] == 4:
+        val_cls_map = tusimple_3class_mapping
+    else:
+        raise ValueError("Only support 3|4 lane classes, see data/constants.py for mapping")
 
 # Setup model and data loader
 config['vgg_w'] = 0  # do not load vgg model
@@ -38,7 +48,7 @@ elif config['trainer'] == 'Baseline':
 elif config['trainer'] == 'ADA':
     trainer = ADA_Trainer(config)
 else:
-    sys.exit("Only support MUNIT|UNIT|Baseline")
+    raise ValueError("Only support MUNIT|UNIT|Baseline|ADA")
 
 state_dict = torch.load(opts.checkpoint)
 # assume gen_a is for simulation data and gen_b is for real data
@@ -59,17 +69,12 @@ if distributed:
     torch.cuda.set_device(opts.local_rank)
     torch.distributed.init_process_group(backend='nccl', init_method='env://')
 
-print('Start testing...')
-
 if config['dataset'] == 'CULane':
-    cls_num_per_lane = 18
+    num_anchors = 18
 elif config['dataset'] == 'TuSimple':
-    cls_num_per_lane = 56
+    num_anchors = 56
 else:
     raise NotImplementedError("Only support CULane|TuSimple")
-
-loader = get_test_loader(batch_size=config["batch_size"], data_root=config["dataB_root"], distributed=False,
-                         image_dim=(config["input_height"], config["input_width"]))
 
 if distributed:
     net = torch.nn.parallel.DistributedDataParallel(trainer, device_ids=[opts.local_rank])
@@ -77,5 +82,45 @@ if distributed:
 if not os.path.exists(opts.output_folder):
     os.mkdir(opts.output_folder)
 
-eval_lane(trainer, config['dataset'], config['dataB_root'], loader, opts.output_folder, config['lane']['griding_num'],
-          False)
+if config['dataset'] == 'TuSimple' and config["lane"]["use_cls"]:
+    # test set classification labels not available
+    print("Evaluating TuSimple classification (validation set)")
+    val_loader = get_test_loader(
+        batch_size=config["batch_size"],
+        data_root=config["dataB_root"],
+        distributed=False,
+        use_cls=config["lane"]["use_cls"],
+        image_dim=(config["input_height"], config["input_width"]),
+        partition="val",
+        cls_map=val_cls_map
+    )
+
+    eval_lane(
+        net=trainer,
+        dataset=config['dataset'],
+        data_root=config['dataB_root'],
+        loader=val_loader,
+        work_dir=opts.output_folder,
+        griding_num=config['lane']['griding_num'],
+        use_cls=config["lane"]["use_cls"],
+        partition='val'
+    )
+
+print("Evaluating on test set")
+test_loader = get_test_loader(
+    batch_size=config["batch_size"],
+    data_root=config["dataB_root"],
+    distributed=False,
+    use_cls=False,
+    image_dim=(config["input_height"], config["input_width"])
+)
+
+eval_lane(
+    net=trainer,
+    dataset=config['dataset'],
+    data_root=config['dataB_root'],
+    loader=test_loader,
+    work_dir=opts.output_folder,
+    griding_num=config['lane']['griding_num'],
+    use_cls=False,
+)

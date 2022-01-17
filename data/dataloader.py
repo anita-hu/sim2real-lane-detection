@@ -5,7 +5,7 @@ import os
 import torch
 import torchvision.transforms as transforms
 import data.mytransforms as mytransforms
-from data.dataset import LaneClsDataset, LaneTestDataset
+from data.dataset import LaneDataset, LaneTestDataset
 
 
 def get_tusimple_row_anchor(image_height):
@@ -16,8 +16,9 @@ def get_culane_row_anchor(image_height):
     return [int(image_height-i*20/590*image_height)-1 for i in range(18)]
 
 
-def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distributed, num_lanes, image_dim=(288, 800),
-                     return_label=False, baseline=False):
+def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux,
+                     distributed, num_lanes, use_cls, image_dim=(288, 800),
+                     return_label=False, baseline=False, cls_map=None):
     target_transform = transforms.Compose([
         mytransforms.FreeScaleMask(image_dim),
         mytransforms.MaskToTensor(),
@@ -43,18 +44,22 @@ def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distr
         row_anchor = get_tusimple_row_anchor(image_dim[0])
     else:
         raise NotImplementedError("Only support CULane|TuSimple")
-    train_dataset = LaneClsDataset(data_root,
-                                   os.path.join(data_root, 'list/train_gt.txt'),
-                                   img_transform=img_transform,
-                                   target_transform=target_transform,
-                                   simu_transform=simu_transform,
-                                   griding_num=griding_num,
-                                   row_anchor=row_anchor,
-                                   image_dim=image_dim,
-                                   segment_transform=segment_transform,
-                                   use_aux=use_aux,
-                                   num_lanes=num_lanes,
-                                   return_label=return_label)
+
+    train_dataset = LaneDataset(data_root,
+                                os.path.join(data_root, 'list/train_gt.txt'),
+                                img_transform=img_transform,
+                                target_transform=target_transform,
+                                simu_transform=simu_transform,
+                                segment_transform=segment_transform,
+                                row_anchor=row_anchor,
+                                griding_num=griding_num,
+                                image_dim=image_dim,
+                                use_aux=use_aux,
+                                num_lanes=num_lanes,
+                                use_cls=use_cls,
+                                return_label=return_label,
+                                cls_map=cls_map)
+
     if distributed:
         sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     else:
@@ -65,7 +70,7 @@ def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distr
     return train_loader
 
 
-def get_test_loader(batch_size, data_root, distributed, image_dim=(288, 800), partition='test'):
+def get_test_loader(batch_size, data_root, distributed, use_cls, image_dim=(288, 800), partition='test', cls_map=None):
     img_transforms = transforms.Compose([
         transforms.Resize(image_dim),
         transforms.ToTensor(),
@@ -73,7 +78,7 @@ def get_test_loader(batch_size, data_root, distributed, image_dim=(288, 800), pa
     ])
     assert partition in ['test', 'val']
     test_dataset = LaneTestDataset(data_root, os.path.join(data_root, f'list/{partition}.txt'),
-                                   img_transform=img_transforms)
+                                   img_transform=img_transforms, use_cls=use_cls, cls_map=cls_map)
     if distributed:
         sampler = SeqDistributedSampler(test_dataset, shuffle=False)
     else:

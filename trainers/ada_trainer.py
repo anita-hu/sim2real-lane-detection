@@ -21,8 +21,13 @@ class ADA_Trainer(nn.Module):
     def __init__(self, hyperparameters):
         super(ADA_Trainer, self).__init__()
         # Initiate the networks
-        self.gen_b = ResNetEnc(nc=hyperparameters['input_dim_b'],
-                               norm=hyperparameters['gen']['norm'])  # encoder for both domains
+        nc = hyperparameters['input_dim_b']
+        n_res = hyperparameters['gen']['n_res']
+        activ = hyperparameters['gen']['activ']
+        norm = hyperparameters['gen']['norm']
+        pad_type = hyperparameters['gen']['pad_type']
+        self.gen_b = ResNetEnc(num_blocks=n_res, nc=nc, activ=activ, norm=norm,
+                               pad_type=pad_type)  # encoder for both domains
         if hyperparameters['multi_gpu']:
             self.gen_b = DataParallel(self.gen_b)
         self.dis = FeatureDis(128, hyperparameters['dis_fea'],
@@ -79,23 +84,28 @@ class ADA_Trainer(nn.Module):
         reset_metrics(self.metric_dict)
 
     def _log_lane_metrics(self, metric_dict, preds, labels, postfix):
-        if isinstance(labels, tuple):
-            cls_label, seg_label = labels
-            cls_out, seg_out = preds
-            results = {'cls_out': torch.argmax(cls_out, dim=1), 'cls_label': cls_label,
+        det_label, cls_label, seg_label = labels
+        det_out, cls_out, seg_out = preds
+        if cls_out is not None and seg_out is not None:
+            results = {'det_out': torch.argmax(det_out, dim=1), 'det_label': det_label,
+                       'seg_out': torch.argmax(seg_out, dim=1), 'seg_label': seg_label,
+                       'cls_out': torch.argmax(cls_out, dim=1), 'cls_label': cls_label}
+        elif seg_out is not None:
+            results = {'det_out': torch.argmax(det_out, dim=1), 'det_label': det_label,
                        'seg_out': torch.argmax(seg_out, dim=1), 'seg_label': seg_label}
+        elif cls_out is not None:
+            results = {'det_out': torch.argmax(det_out, dim=1), 'det_label': det_label,
+                       'cls_out': torch.argmax(cls_out, dim=1), 'cls_label': cls_label}
         else:
-            cls_label = labels
-            cls_out = preds
-            results = {'cls_out': torch.argmax(cls_out, dim=1), 'cls_label': cls_label}
+            results = {'det_out': torch.argmax(det_out, dim=1), 'det_label': det_label}
 
         update_metrics(metric_dict, results)
         for me_name, me_op in zip(metric_dict['name'], metric_dict['op']):
-            self.metric_log_dict[f"lane_metric_{me_name}_{postfix}"] = me_op.get()
+            self.metric_log_dict[f"eval_metrics/lane_metric_{me_name}_{postfix}"] = me_op.get()
 
     def _log_lane_losses(self, postfix):
         for k, v in self.lane_loss.current_losses.items():
-            self.log_dict[f"lane_{k}_{postfix}"] = v
+            self.log_dict[f"lane_loss/lane_{k}_{postfix}"] = v
 
     def gen_update(self, x_a, x_b, y_a, hyperparameters):
         # assume x_a from simulation data with labels y_a and x_b from real data

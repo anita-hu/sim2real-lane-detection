@@ -36,7 +36,7 @@ def generate_video_demo(model, dataloader: torch.utils.data.DataLoader,
 
     print(f"writing output to {outfile}.")
     for i, data in enumerate(tqdm.tqdm(dataloader)):
-        imgs, names = data
+        imgs, names, _ = data
         imgs = imgs.cuda()
         with torch.no_grad():
             out = model.eval_lanes(imgs)  # finally, run the images through the model.
@@ -44,7 +44,6 @@ def generate_video_demo(model, dataloader: torch.utils.data.DataLoader,
         for x in range(out.size()[0]):
             col_sample = np.linspace(0, model_in_dims[0] - 1, griding_num)
             col_sample_w = col_sample[1] - col_sample[0]
-
 
             out_j = out[x].data.cpu().numpy()
             out_j = out_j[:, ::-1, :]
@@ -65,9 +64,8 @@ def generate_video_demo(model, dataloader: torch.utils.data.DataLoader,
                 if np.sum(out_j[:, i] != 0) > 2:
                     for k in range(out_j.shape[0]):
                         if out_j[k, i] > 0:
-                            ppp = (int(out_j[k, i] * col_sample_w * image_dims[0] / \
-                                       model_in_dims[0]) - 1, \
-                                   int(row_anchor[cls_num_per_lane-1-k]) - 1 )
+                            ppp = (int(out_j[k, i] * col_sample_w * image_dims[0] / model_in_dims[0]) - 1,
+                                   int(row_anchor[cls_num_per_lane-1-k]) - 1)
                             vis = cv2.circle(vis, ppp, 5, (0, 255, 0), -1)
             vout.write(vis)  # write a frame
     vout.release()  # release lock for writing video
@@ -81,7 +79,6 @@ if __name__ == "__main__":
     opts = parser.parse_args()
 
     print("Starting to test.")
-
 
     ############################################################################
     # Dataset
@@ -98,8 +95,10 @@ if __name__ == "__main__":
 
     if cfg["dataset"] == 'CULane':
         cls_num_per_lane = 18
-        splits = ['test0_normal.txt', 'test1_crowd.txt', 'test2_hlight.txt', 'test3_shadow.txt', 'test4_noline.txt', 'test5_arrow.txt', 'test6_curve.txt', 'test7_cross.txt', 'test8_night.txt']
-        datasets = [LaneTestDataset(cfg["dataB_root"], os.path.join(cfg["dataB_root"], 'list/test_split/'+split),img_transform = img_transforms) for split in splits]
+        splits = ['test0_normal.txt', 'test1_crowd.txt', 'test2_hlight.txt', 'test3_shadow.txt', 'test4_noline.txt',
+                  'test5_arrow.txt', 'test6_curve.txt', 'test7_cross.txt', 'test8_night.txt']
+        datasets = [LaneTestDataset(cfg["dataB_root"], os.path.join(cfg["dataB_root"], 'list/test_split/'+split),
+                                    img_transform=img_transforms) for split in splits]
         img_w, img_h = 1640, 590
         row_anchor = get_culane_row_anchor(img_h)
         framerate = 30.0
@@ -108,11 +107,11 @@ if __name__ == "__main__":
         cls_num_per_lane = 56
         splits = ['test.txt']
         datasets = [LaneTestDataset(cfg["dataB_root"], os.path.join(cfg["dataB_root"], split),
-                                    img_transform = img_transforms) for split in splits]
+                                    img_transform=img_transforms) for split in splits]
         img_w, img_h = 1280, 720
         row_anchor = get_tusimple_row_anchor(img_h)
 
-        framerate = 2 # TuSimple is not sequential, so settle for the slideshow.
+        framerate = 2  # TuSimple is not sequential, so settle for the slideshow.
         # If you raise the framerate on TuSimple it's seizure-inducing
     else:
         raise NotImplementedError
@@ -133,8 +132,7 @@ if __name__ == "__main__":
     elif cfg['trainer'] == 'Baseline':
         trainer = Baseline_Trainer(cfg)
     else:
-        sys.exit("Only support MUNIT|UNIT|Baseline")
-        trainer = UNIT_Trainer(cfg)  # never reached, but stops linter from complaining
+        raise ValueError("Only support MUNIT|UNIT|Baseline")
 
     state_dict = torch.load(opts.checkpoint)
     # assume gen_a is for simulation data and gen_b is for real data
@@ -153,10 +151,9 @@ if __name__ == "__main__":
 
         loader = torch.utils.data.DataLoader(dataset,
                                              batch_size=cfg["batch_size"],
-                                             shuffle = False, num_workers=1)
+                                             shuffle=False, num_workers=1)
         generate_video_demo(trainer, loader, cfg["dataB_root"], (img_w, img_h),
                             model_in_dims=(cfg["input_width"], cfg["input_height"]),
                             griding_num=cfg["lane"]["griding_num"],
                             outfile=outfile,
                             framerate=framerate)
-
