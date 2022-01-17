@@ -39,6 +39,11 @@ bash start.sh /path/to/dataset_root
 Please see [DATASET.md](./DATASET.md)
 
 #### Training
+Download VGG16 weights from [Google Drive](https://drive.google.com/drive/folders/1bXOdkQjsBlMXjwDizK1TxG-GAhhJVJua?usp=sharing) and place in the following folder
+```
+./models/vgg16.pth
+```
+For training, run
 ```
 python train.py --config configs/tusimple/unit.yaml
 ```
