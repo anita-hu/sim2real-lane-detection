@@ -10,7 +10,7 @@ Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses
 
 ### Code usage
 
-Model weights are stored using Git LFS. Install [Git LFS](https://git-lfs.github.com/) and clone this repository
+Clone this repository
 ```
 git clone https://github.com/anita-hu/sim2real-lane-detection.git
 ```
@@ -72,7 +72,7 @@ Find the outputs in the `outputs` folder.
 
 ### Reference
 
-This code is built upon [UNIT](https://github.com/mingyuliutw/UNIT), [DRIT](https://github.com/HsinYingLee/DRIT), and 
+This code is built upon [UNIT](https://github.com/mingyuliutw/UNIT) and 
 [Ultra Fast Lane Detection](https://github.com/cfzd/Ultra-Fast-Lane-Detection) github repositories. 
 
 Please cite their papers:
@@ -104,35 +104,6 @@ title = {Multimodal Unsupervised Image-to-image Translation},
 booktitle = {Proceedings of the European Conference on Computer Vision (ECCV)},
 month = {September},
 year = {2018}
-}
-```
-
-[DRIT++: Diverse Image-to-Image Translation via Disentangled Representations (IJCV 2020)](https://link.springer.com/article/10.1007/s11263-019-01284-z)
-
-[Hsin-Ying Lee](http://vllab.ucmerced.edu/hylee/), [Hung-Yu Tseng](https://sites.google.com/site/hytseng0509/), 
-[Qi Mao](https://sites.google.com/view/qi-mao/), [Jia-Bin Huang](https://filebox.ece.vt.edu/~jbhuang/), 
-[Yu-Ding Lu](https://jonlu0602.github.io/), [Maneesh Kumar Singh](https://scholar.google.com/citations?user=hdQhiFgAAAAJ), 
-and [Ming-Hsuan Yang](http://faculty.ucmerced.edu/mhyang/)
-```
-@article{DRIT_plus,
-  author = {Lee, Hsin-Ying and Tseng, Hung-Yu and Mao, Qi and Huang, Jia-Bin and Lu, Yu-Ding and Singh, Maneesh Kumar and Yang, Ming-Hsuan},
-  title = {DRIT++: Diverse Image-to-Image Translation viaDisentangled Representations},
-  journal={International Journal of Computer Vision},
-  pages={1--16},
-  year={2020}
-}
-```
-[Diverse Image-to-Image Translation via Disentangled Representations (ECCV 2018)](https://openaccess.thecvf.com/content_ECCV_2018/html/Hsin-Ying_Lee_Diverse_Image-to-Image_Translation_ECCV_2018_paper.html)
-
-[Hsin-Ying Lee](http://vllab.ucmerced.edu/hylee/), [Hung-Yu Tseng](https://sites.google.com/site/hytseng0509/), 
-[Jia-Bin Huang](https://filebox.ece.vt.edu/~jbhuang/), [Maneesh Kumar Singh](https://scholar.google.com/citations?user=hdQhiFgAAAAJ), 
-and [Ming-Hsuan Yang](http://faculty.ucmerced.edu/mhyang/)
-```
-@inproceedings{DRIT,
-  author = {Lee, Hsin-Ying and Tseng, Hung-Yu and Huang, Jia-Bin and Singh, Maneesh Kumar and Yang, Ming-Hsuan},
-  booktitle = {European Conference on Computer Vision},
-  title = {Diverse Image-to-Image Translation via Disentangled Representations},
-  year = {2018}
 }
 ```
 [Ultra Fast Structure-aware Deep Lane Detection (ECCV 2020)](https://link.springer.com/chapter/10.1007%2F978-3-030-58586-0_17)

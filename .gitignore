@@ -1,6 +1,7 @@
 # Project specific folders / files
 datasets
 logs
+models
 outputs
 results
 evaluation/culane/evaluate
