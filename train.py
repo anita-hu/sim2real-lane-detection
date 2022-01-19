@@ -119,7 +119,7 @@ if not no_adv_gen:
     test_display_images_b = torch.stack([val_loader_b.dataset[i][0] for i in range(display_size)]).cuda()
 
 # Setup logger and output folders
-output_directory = os.path.join(opts.output_path + "/outputs", run.name)
+output_directory = os.path.join(opts.output_path + "/outputs", run.id)
 if not os.path.exists(output_directory):
     print("Creating directory: {}".format(output_directory))
     os.makedirs(output_directory)
