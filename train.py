@@ -38,7 +38,7 @@ config["resume"] = opts.resume
 
 # Initialize wandb
 os.environ['WANDB_CONSOLE'] = 'off'
-wandb.init(entity=opts.entity, project=opts.project, config=config)
+run = wandb.init(entity=opts.entity, project=opts.project, config=config)
 
 # Set random seed for reproducibility
 torch.manual_seed(config["random_seed"])
@@ -119,8 +119,10 @@ if not no_adv_gen:
     test_display_images_b = torch.stack([val_loader_b.dataset[i][0] for i in range(display_size)]).cuda()
 
 # Setup logger and output folders
-model_name = os.path.splitext(os.path.basename(opts.config))[0]
-output_directory = os.path.join(opts.output_path + "/outputs", model_name)
+output_directory = os.path.join(opts.output_path + "/outputs", run.name)
+if not os.path.exists(output_directory):
+    print("Creating directory: {}".format(output_directory))
+    os.makedirs(output_directory)
 checkpoint_directory = prepare_sub_folder(output_directory)
 shutil.copy(opts.config, os.path.join(output_directory, 'config.yaml'))  # copy config file to output folder
 
