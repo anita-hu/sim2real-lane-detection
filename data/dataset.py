@@ -193,9 +193,9 @@ class LaneDataset(torch.utils.data.Dataset):
             pdb.set_trace()
         return all_idx_cp
 
-class DatasetConverter(LaneClsDataset):
+class DatasetConverter(LaneDataset):
     """
-    Subclass that does the same as the LaneClsDataset, but also
+    Subclass that does the same as the LaneDataset, but also
     returns the image path such that the file can be overwritten.
     __getitem__ is the only method changed.
     """
