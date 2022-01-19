@@ -29,8 +29,6 @@ class UNIT_Trainer(nn.Module):
                                 multi_gpu=hyperparameters['multi_gpu'])  # discriminator for domain a
         self.dis_b = MsImageDis(hyperparameters['input_dim_b'], hyperparameters['dis'],
                                 multi_gpu=hyperparameters['multi_gpu'])  # discriminator for domain b
-        self.dis_fea = FeatureDis(128, hyperparameters['dis_fea'],
-                                  multi_gpu=hyperparameters['multi_gpu'])  # feature discriminator
         self.instancenorm = nn.InstanceNorm2d(512, affine=False)
         input_size = (hyperparameters['input_height'], hyperparameters['input_width'])
         self.lane_model = UltraFastLaneDetector(hyperparameters['lane'], feature_dims=(128, 256, 512),
@@ -40,11 +38,17 @@ class UNIT_Trainer(nn.Module):
         if hyperparameters['multi_gpu']:
             self.lane_model = DataParallel(self.lane_model)
 
+        dis_params = list(self.dis_a.parameters()) + list(self.dis_b.parameters())
+        gen_params = list(self.gen_a.parameters()) + list(self.gen_b.parameters())
+
+        if hyperparameters['gan_fea_w'] > 0:
+            self.dis_fea = FeatureDis(128, hyperparameters['dis_fea'],
+                                      multi_gpu=hyperparameters['multi_gpu'])  # feature discriminator
+            dis_params += list(self.dis_fea.parameters())
+
         # Setup the optimizers
         beta1 = hyperparameters['beta1']
         beta2 = hyperparameters['beta2']
-        dis_params = list(self.dis_a.parameters()) + list(self.dis_b.parameters()) + list(self.dis_fea.parameters())
-        gen_params = list(self.gen_a.parameters()) + list(self.gen_b.parameters())
         lr = hyperparameters['dis']['lr']
         self.dis_opt = torch.optim.Adam([p for p in dis_params if p.requires_grad],
                                         lr=lr, betas=(beta1, beta2), weight_decay=hyperparameters['weight_decay'])
@@ -72,7 +76,8 @@ class UNIT_Trainer(nn.Module):
         self.apply(weights_init(hyperparameters['init']))
         self.dis_a.apply(weights_init('gaussian'))
         self.dis_b.apply(weights_init('gaussian'))
-        self.dis_fea.apply(weights_init('gaussian'))
+        if hyperparameters['gan_fea_w'] > 0:
+            self.dis_fea.apply(weights_init('gaussian'))
 
         # Load VGG model if needed
         if 'vgg_w' in hyperparameters.keys() and hyperparameters['vgg_w'] > 0:
@@ -190,7 +195,7 @@ class UNIT_Trainer(nn.Module):
             # GAN loss
             self.loss_gen_adv_a = self.dis_a.calc_gen_loss(x_ba)
             self.loss_gen_adv_b = self.dis_b.calc_gen_loss(x_ab)
-            self.loss_gen_adv_fea = self.dis_fea.calc_gen_loss(h_a, h_b)
+            self.loss_gen_adv_fea = self.dis_fea.calc_gen_loss(h_a, h_b) if hyperparameters['gan_fea_w'] > 0 else 0
             # domain-invariant perceptual loss
             self.loss_gen_vgg_a = self._compute_vgg_loss(self.vgg, x_ba, x_b) if hyperparameters['vgg_w'] > 0 else 0
             self.loss_gen_vgg_b = self._compute_vgg_loss(self.vgg, x_ab, x_a) if hyperparameters['vgg_w'] > 0 else 0
@@ -259,7 +264,8 @@ class UNIT_Trainer(nn.Module):
             # D loss
             self.loss_dis_a = self.dis_a.calc_dis_loss(x_ba.detach(), x_a)
             self.loss_dis_b = self.dis_b.calc_dis_loss(x_ab.detach(), x_b)
-            self.loss_dis_fea = self.dis_fea.calc_dis_loss(h_a.detach(), h_b.detach())
+            self.loss_dis_fea = self.dis_fea.calc_dis_loss(h_a.detach(), h_b.detach()) \
+                if hyperparameters['gan_fea_w'] > 0 else 0
             self.loss_dis_total = hyperparameters['gan_w'] * (self.loss_dis_a + self.loss_dis_b) + \
                                   hyperparameters['gan_fea_w'] * self.loss_dis_fea
 
@@ -290,6 +296,8 @@ class UNIT_Trainer(nn.Module):
         state_dict = torch.load(os.path.join(checkpoint_dir, "dis.pt"))
         self.dis_a.load_state_dict(state_dict['a'])
         self.dis_b.load_state_dict(state_dict['b'])
+        if hyperparameters['gan_fea_w'] > 0:
+            self.dis_fea.load_state_dict(state_dict['fea'])
         # Load optimizers
         state_dict = torch.load(os.path.join(checkpoint_dir, 'optimizer.pt'))
         self.dis_opt.load_state_dict(state_dict['dis'])
@@ -309,6 +317,9 @@ class UNIT_Trainer(nn.Module):
         opt_name = os.path.join(snapshot_dir, 'optimizer.pt')
         torch.save({'a': self.gen_a.state_dict(), 'b': self.gen_b.state_dict(),
                     'lane': self.lane_model.state_dict(), 'epoch': epoch + 1}, gen_name)
-        torch.save({'a': self.dis_a.state_dict(), 'b': self.dis_b.state_dict(), 'epoch': epoch + 1}, dis_name)
+        dis_dict = {'a': self.dis_a.state_dict(), 'b': self.dis_b.state_dict(), 'epoch': epoch + 1}
+        if hasattr(self, "dis_fea"):
+            dis_dict["fea"] = self.dis_fea.state_dict()
+        torch.save(dis_dict, dis_name)
         torch.save({'gen': self.gen_opt.state_dict(), 'dis': self.dis_opt.state_dict(),
                     'lane': self.lane_opt.state_dict(), 'epoch': epoch + 1}, opt_name)
