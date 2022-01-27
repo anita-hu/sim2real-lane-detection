@@ -3,7 +3,6 @@ Based on https://github.com/cfzd/Ultra-Fast-Lane-Detection/blob/master/test.py
 """
 import argparse
 import os
-import sys
 import torch
 from utils import get_config
 from trainers import MUNIT_Trainer, UNIT_Trainer, Baseline_Trainer, ADA_Trainer
