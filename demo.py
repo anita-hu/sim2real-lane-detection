@@ -13,12 +13,9 @@ import tqdm
 
 from data.dataloader import get_culane_row_anchor, get_tusimple_row_anchor
 from data.dataset import LaneTestDataset
-from trainers.baseline_trainer import Baseline_Trainer
-from trainers.munit_trainer import MUNIT_Trainer
-from trainers.unit_trainer import UNIT_Trainer
+from trainers import MUNIT_Trainer, UNIT_Trainer, Baseline_Trainer, ADA_Trainer
 from utils import get_config
 
-from data.constants import classes
 
 colormap = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
 
@@ -32,11 +29,9 @@ def generate_video_demo(model, dataloader: torch.utils.data.DataLoader,
     :image_dims: (w, h) of the images used to create the video
     :model_in_dims: (w, h) of the model's input
     """
-
-
     outfile = os.path.join("outputs/", outfile)
     fourcc = cv2.VideoWriter_fourcc(*'MJPG')
-    vout = cv2.VideoWriter(outfile, fourcc , framerate, image_dims)
+    vout = cv2.VideoWriter(outfile, fourcc, framerate, image_dims)
 
     print(f"writing output to {outfile}.")
     for i, data in enumerate(tqdm.tqdm(dataloader)):
@@ -125,7 +120,7 @@ if __name__ == "__main__":
     elif cfg["dataset"] == 'TuSimple':
         cls_num_per_lane = 56
         splits = ['test.txt']
-        datasets = [LaneTestDataset(cfg["dataB_root"], os.path.join(cfg["dataB_root"], split),
+        datasets = [LaneTestDataset(cfg["dataB_root"], os.path.join(cfg["dataB_root"], 'list/'+split),
                                     img_transform=img_transforms) for split in splits]
         img_w, img_h = 1280, 720
         row_anchor = get_tusimple_row_anchor(img_h)
@@ -134,7 +129,6 @@ if __name__ == "__main__":
         # If you raise the framerate on TuSimple it's seizure-inducing
     else:
         raise NotImplementedError
-
 
     ############################################################################
     # Model
@@ -150,8 +144,10 @@ if __name__ == "__main__":
         trainer = UNIT_Trainer(cfg)
     elif cfg['trainer'] == 'Baseline':
         trainer = Baseline_Trainer(cfg)
+    elif cfg['trainer'] == 'ADA':
+        trainer = ADA_Trainer(cfg)
     else:
-        raise ValueError("Only support MUNIT|UNIT|Baseline")
+        raise ValueError("Only support MUNIT|UNIT|Baseline|ADA")
 
     state_dict = torch.load(opts.checkpoint)
     # assume gen_a is for simulation data and gen_b is for real data
@@ -165,7 +161,6 @@ if __name__ == "__main__":
     trainer.eval()
 
     for i, (split, dataset) in enumerate(zip(splits, datasets)):
-
         outfile = f"{opts.output_prefix}_{cfg['dataset']}_{split[:-4]}.avi"
 
         loader = torch.utils.data.DataLoader(dataset,
