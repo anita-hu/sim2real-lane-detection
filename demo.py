@@ -18,10 +18,14 @@ from trainers.munit_trainer import MUNIT_Trainer
 from trainers.unit_trainer import UNIT_Trainer
 from utils import get_config
 
+from data.constants import classes
+
+colormap = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
+
 
 def generate_video_demo(model, dataloader: torch.utils.data.DataLoader,
                         dataset_root: str, image_dims, model_in_dims, griding_num,
-                        outfile="demo.avi", framerate=30.0):
+                        outfile="demo.avi", framerate=30.0, use_cls=False):
     """
     Generates a video of sequential frames from the dataset, using the model
     to predict the lanes.
@@ -39,13 +43,18 @@ def generate_video_demo(model, dataloader: torch.utils.data.DataLoader,
         imgs, names, _ = data
         imgs = imgs.cuda()
         with torch.no_grad():
-            out = model.eval_lanes(imgs)  # finally, run the images through the model.
+            det_out, cls_out, _ = model.eval_lanes(imgs)  # finally, run the images through the model.
 
-        for x in range(out.size()[0]):
+        if use_cls:
+            # Process classification output
+            cls_preds = torch.argmax(cls_out, dim=1).detach().cpu().numpy()
+
+        # Loop through each sample in batch
+        for x in range(det_out.size()[0]):
             col_sample = np.linspace(0, model_in_dims[0] - 1, griding_num)
             col_sample_w = col_sample[1] - col_sample[0]
 
-            out_j = out[x].data.cpu().numpy()
+            out_j = det_out[x].data.cpu().numpy()
             out_j = out_j[:, ::-1, :]
             prob = scipy.special.softmax(out_j[:-1, :, :], axis=0)
             idx = np.arange(griding_num) + 1
@@ -60,13 +69,23 @@ def generate_video_demo(model, dataloader: torch.utils.data.DataLoader,
             vis = cv2.imread(filename)  # read the original file from the dataset
             if vis is None:
                 raise ValueError(f"OpenCV failed to read a frame. Does the file {filename} exist?")
+            # Loop through each lane
             for i in range(out_j.shape[1]):
                 if np.sum(out_j[:, i] != 0) > 2:
+                    if use_cls:
+                        # Set color depending on class prediction
+                        cls_pred = cls_preds[x, i]
+                        color = colormap[cls_pred]
+                    else:
+                        # Default to green
+                        color = (0, 255, 0)
+
+                    # Loop through anchor locations
                     for k in range(out_j.shape[0]):
                         if out_j[k, i] > 0:
                             ppp = (int(out_j[k, i] * col_sample_w * image_dims[0] / model_in_dims[0]) - 1,
                                    int(row_anchor[cls_num_per_lane-1-k]) - 1)
-                            vis = cv2.circle(vis, ppp, 5, (0, 255, 0), -1)
+                            vis = cv2.circle(vis, ppp, 5, color, -1)
             vout.write(vis)  # write a frame
     vout.release()  # release lock for writing video
 
@@ -156,4 +175,5 @@ if __name__ == "__main__":
                             model_in_dims=(cfg["input_width"], cfg["input_height"]),
                             griding_num=cfg["lane"]["griding_num"],
                             outfile=outfile,
-                            framerate=framerate)
+                            framerate=framerate,
+                            use_cls=cfg['lane']['use_cls'])
