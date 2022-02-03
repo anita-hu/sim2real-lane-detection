@@ -6,6 +6,7 @@ log_iter: 200                 # How often do you want to log loss and learning r
 
 # optimization options
 max_epoch: 100                # maximum number of training epochs
+save_policy: val              # [val, last] saving based on max validation performance or last epoch
 batch_size: 8                 # batch size
 weight_decay: 0.0001          # weight decay
 beta1: 0.5                    # Adam parameter

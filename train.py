@@ -192,7 +192,11 @@ for epoch in range(start_epoch, config['max_epoch']):
     wandb.log(log_dict, step=iterations)
 
     # Save network weights
-    if val_metric > best_val_metric:
+    if config['save_policy'] == "val" and val_metric > best_val_metric:
         trainer.save(checkpoint_directory, epoch)
         best_val_metric = val_metric
-        print("Saved best model at epoch", epoch + 1)
+        print("Saved best (by validation) model at epoch", epoch + 1)
+    elif config['save_policy'] == "last" and epoch == config['max_epoch'] - 1:
+        trainer.save(checkpoint_directory, epoch)
+        best_val_metric = val_metric
+        print("Saved last model at epoch", epoch + 1)

@@ -4,6 +4,9 @@ namely munit, unit, or drit. The dataset is replicated, and then for every image
 simulated dataset it's translated to the "real" domain and then saved, overwritten.
 The original dataset is specified in the config file, datasetA. That dataset
 is cloned and then modified.
+This script uses `cp` to copy the whole dataset before modifying it in place.
+If the script is hanging, it's likely that `cp` cannot complete, likely due
+to a permission error.
 """
 import os
 import sys
@@ -89,6 +92,3 @@ with torch.no_grad():
             image_tensor = unorm(sim2real[i])
             image_tensor = upsample(image_tensor.unsqueeze(0)).squeeze()
             save_image(image_tensor.cpu(), image_path)  # overwrite
-
-
-
