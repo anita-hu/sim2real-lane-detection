@@ -1,3 +1,8 @@
+# Modified work Copyright (C) 2021 Anita Hu.
+# Original work Copyright (C) 2018 NVIDIA Corporation.  All rights reserved.
+# Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
+# Original source: https://github.com/mingyuliutw/UNIT/blob/master/networks.py
+
 import torch
 from torch import nn
 import torch.nn.functional as F

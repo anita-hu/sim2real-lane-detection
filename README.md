@@ -1,12 +1,20 @@
 [![License CC BY-NC-SA 4.0](https://img.shields.io/badge/license-CC4.0-blue.svg)](https://raw.githubusercontent.com/NVIDIA/FastPhotoStyle/master/LICENSE.md)
-## Sim2real Lane Detection and Classification
+## Sim-to-Real Lane Detection and Classification
 
-### TODO: License
+Code for the paper [Sim-to-Real Domain Adaptation for Lane Detection and Classification in Autonomous Driving](). 
+If you use this code or our simulation dataset, please cite our paper:
+```
 
-License from UNIT:
+```
 
-Copyright (C) 2018 NVIDIA Corporation.  All rights reserved.
+### License
+Adapted work Copyright (C) 2021 Anita Hu, Sinclair Hudson, Martin Ethier.  All rights reserved.
+Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
+
+Original work ([mingyuliutw/UNIT](https://github.com/mingyuliutw/UNIT)) Copyright (C) 2018 NVIDIA Corporation.  All rights reserved.
 Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode). 
+
+Original work ([cfzd/Ultra Fast Lane Detection](https://github.com/cfzd/Ultra-Fast-Lane-Detection)) Copyright (c) 2020 cfzd.  All rights reserved. Licensed under the MIT license.
 
 ### Code usage
 
@@ -45,7 +53,7 @@ Download VGG16 weights from [Google Drive](https://drive.google.com/drive/folder
 ```
 For training, run
 ```
-python train.py --config configs/tusimple/unit.yaml
+python train.py --config configs/tusimple/ada.yaml
 ```
 
 #### Evaluating
@@ -56,8 +64,8 @@ make
 ```
 For evaluation, run
 ```
-python test.py --config configs/tusimple/unit.yaml \
-               --checkpoint outputs/unit/checkpoints/gen.pt \
+python test.py --config configs/tusimple/ada.yaml \
+               --checkpoint outputs/ada/checkpoints/gen.pt \
                --output_folder results
 ```
 
@@ -66,7 +74,8 @@ python test.py --config configs/tusimple/unit.yaml \
 You can visualize results with openCV with the `demo.py` script:
 
 ```
-python demo.py --config configs/tusimple/unit.yaml --checkpoint /path/to/pretrained/model.pt
+python demo.py --config configs/tusimple/ada.yaml \
+               --checkpoint /path/to/pretrained/model.pt
 ```
 Find the outputs in the `outputs` folder.
 
