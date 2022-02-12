@@ -48,6 +48,37 @@ For training, run
 python train.py --config configs/tusimple/unit.yaml
 ```
 
+#### Two-stage training
+
+For reproducing the "Two Stage" training results, first, a translator must be trained, with a special config that doesn't use lane losses:
+```
+python train.py --config configs/tusimple/unit_s2r.yaml
+```
+
+Next,`translate_dataset.py` copies a whole dataset, translates every image using a trained translator, and saves it to be used in future runs:
+
+```
+python translate_dataset.py  --config configs/tusimple/unit_s2r.yaml  \
+--checkpoint_dir outputs/unit_s2r/checkpoints/ \
+--new_data_folder outputs/ds/WATO_TuSimple
+```
+
+Finally, once the dataset has been translated, the location can be referenced in
+a normal training configuration file, and training occurs as normal:
+
+```
+python train.py --config configs/tusimple/translated_baseline.yaml 
+```
+
+where `translated_baseline.yaml` has:
+
+```yaml
+...
+
+dataset: TuSimple                  
+dataA_root: outputs/ds/WATO_TuSimple
+```
+
 #### Evaluating
 Within the docker container, build the evaluation tool
 ```
