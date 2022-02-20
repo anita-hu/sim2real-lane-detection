@@ -7,7 +7,7 @@ image_save_epoch: 1           # How often do you want to save output images duri
 display_size: 4               # How many images do you want to display each time
 
 # optimization options
-max_epoch: 2                # maximum number of training epochs
+max_epoch: 100                # maximum number of training epochs
 save_policy: last             # [val, last]
 batch_size: 2                 # batch size
 weight_decay: 0.0001          # weight decay
