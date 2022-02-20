@@ -55,12 +55,16 @@ For reproducing the "Two Stage" training results, first, a translator must be tr
 python train.py --config configs/tusimple/unit_s2r.yaml
 ```
 
-Next,`translate_dataset.py` copies a whole dataset, translates every image using a trained translator, and saves it to be used in future runs:
+Next,`translate_dataset.py` copies a whole dataset,
+translates every image using a trained translator,
+and saves it to be used in future runs:
 
 ```
+mkdir outputs/ds
+chmod 777 outputs/ds
 python translate_dataset.py  --config configs/tusimple/unit_s2r.yaml  \
 --checkpoint_dir outputs/unit_s2r/checkpoints/ \
---new_data_folder outputs/ds/WATO_TuSimple
+--new_data_folder outputs/ds/
 ```
 
 Finally, once the dataset has been translated, the location can be referenced in

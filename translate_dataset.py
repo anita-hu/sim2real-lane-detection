@@ -37,6 +37,7 @@ dataset_root = config["dataA_root"]
 new_dataset = opts.new_data_folder
 
 print("making a copy of the dataset")
+print(f"cp -r {dataset_root} {new_dataset}")
 os.system(f"cp -r {dataset_root} {new_dataset}")
 print("done copying the dataset")
 
