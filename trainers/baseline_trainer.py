@@ -1,9 +1,8 @@
-"""
-Copyright (C) 2017 NVIDIA Corporation.  All rights reserved.
-Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
+# Modified work Copyright (C) 2021 Anita Hu, Sinclair Hudson, Martin Ethier.
+# Original work Copyright (C) 2018 NVIDIA Corporation.  All rights reserved.
+# Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
+# Original source: https://github.com/mingyuliutw/UNIT/blob/master/trainer.py
 
-TODO: Figure out license
-"""
 from networks.lane_detector import Resnet, UltraFastLaneDetector
 from utils import get_scheduler
 from lane_losses import UltraFastLaneDetectionLoss

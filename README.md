@@ -1,12 +1,28 @@
+[![arXiv](https://img.shields.io/badge/arXiv-2202.07133-b31b1b.svg)](https://arxiv.org/abs/2202.07133)
 [![License CC BY-NC-SA 4.0](https://img.shields.io/badge/license-CC4.0-blue.svg)](https://raw.githubusercontent.com/NVIDIA/FastPhotoStyle/master/LICENSE.md)
-## Sim2real Lane Detection and Classification
+## Sim-to-Real Lane Detection and Classification
 
-### TODO: License
+Code for the paper [Sim-to-Real Domain Adaptation for Lane Detection and Classification in Autonomous Driving](https://arxiv.org/abs/2202.07133). 
+If you use this code or our simulation [dataset](./DATASET.md), please cite our paper:
+```
+@misc{hu2022simtoreal,
+      title={Sim-to-Real Domain Adaptation for Lane Detection and Classification in Autonomous Driving}, 
+      author={Chuqing Hu and Sinclair Hudson and Martin Ethier and Mohammad Al-Sharman and Derek Rayside and William Melek},
+      year={2022},
+      eprint={2202.07133},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV}
+}
+```
 
-License from UNIT:
+### License
+Adapted work Copyright (C) 2021 Anita Hu, Sinclair Hudson, Martin Ethier.  All rights reserved.
+Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
 
-Copyright (C) 2018 NVIDIA Corporation.  All rights reserved.
+Original work ([mingyuliutw/UNIT](https://github.com/mingyuliutw/UNIT)) Copyright (C) 2018 NVIDIA Corporation.  All rights reserved.
 Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode). 
+
+Original work ([cfzd/Ultra Fast Lane Detection](https://github.com/cfzd/Ultra-Fast-Lane-Detection)) Copyright (c) 2020 cfzd.  All rights reserved. Licensed under the MIT license.
 
 ### Code usage
 
@@ -45,7 +61,7 @@ Download VGG16 weights from [Google Drive](https://drive.google.com/drive/folder
 ```
 For training, run
 ```
-python train.py --config configs/tusimple/unit.yaml
+python train.py --config configs/tusimple/ada.yaml
 ```
 ```
 usage: train.py [-h] [--config CONFIG] [--output_path OUTPUT_PATH] [--resume]
@@ -118,7 +134,7 @@ You can visualize results with openCV with the `demo.py` script:
 python demo.py --config configs/tusimple/unit.yaml \
                --checkpoint /path/to/pretrained/gen.pt
 ```
-Find the outputs in the `outputs` folder.
+Find the outputs in the `outputs/` folder.
 
 ### Reference
 

@@ -1,7 +1,7 @@
 # MIT License
 #
-# Copyright (c) 2020 cfzd (from https://github.com/cfzd/Ultra-Fast-Lane-Detection)
-# Copyright (c) 2021 Anita Hu (modifications)
+# Copyright (c) 2020 cfzd (https://github.com/cfzd/Ultra-Fast-Lane-Detection/blob/master/model/model.py)
+# Copyright (c) 2021 Anita Hu, Martin Ethier (modifications)
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal

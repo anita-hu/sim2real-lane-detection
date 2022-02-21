@@ -1,5 +1,7 @@
-# Copyright (C) 2017 NVIDIA Corporation.  All rights reserved.
+# Modified work Copyright (C) 2021 Anita Hu, Sinclair Hudson, Martin Ethier.
+# Original work Copyright (C) 2017 NVIDIA Corporation.  All rights reserved.
 # Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
+# Original source: https://github.com/mingyuliutw/UNIT/tree/master/configs
 
 # logger options
 log_iter: 400                 # How often do you want to log loss and learning rate values during training
