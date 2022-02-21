@@ -20,13 +20,14 @@ gamma: 0.1                    # how much to decay learning rate
 warmup: linear                # warm up type
 warmup_iters: 0               # warm up iterations to use if not specified for each model
 gan_w: 1                      # weight of adversarial loss
+gan_fea_w: 0                  # weight of feature adversarial loss
 recon_x_w: 10                 # weight of image reconstruction loss
 recon_s_w: 1                  # weight of style reconstruction loss
 recon_c_w: 1                  # weight of content reconstruction loss
 recon_x_cyc_w: 10             # weight of explicit style augmented cycle consistency loss
-vgg_w: 1                      # weight of domain-invariant perceptual loss
-lane_w: 0                    # weight of lane detection loss
-lane_cyc_w: 0                # weight of cyclic lane detection loss
+vgg_w: 0                      # weight of domain-invariant perceptual loss
+lane_w: 0                     # weight of lane detection loss
+lane_cyc_w: 0                 # weight of cyclic lane detection loss
 mixed_precision: True         # use automatic mixed precision training
 multi_gpu: False              # use multi gpu training
 random_seed: 42
@@ -47,21 +48,33 @@ gen:
 dis:
   lr: 0.0002                  # initial learning rate
   dim: 64                     # number of filters in the bottommost layer
-  norm: ln                  # normalization layer [none/bn/in/ln]
+  norm: ln                    # normalization layer [none/bn/in/ln]
   activ: lrelu                # activation function [relu/lrelu/prelu/selu/tanh]
   n_layer: 4                  # number of layers in D
   gan_type: lsgan             # GAN loss [lsgan/nsgan]
   num_scales: 3               # number of scales
   pad_type: reflect           # padding type [zeros/reflect/replicate]
+dis_fea:
+  lr: 0.0001                  # initial learning rate
+  warmup_iters: 24500         # warm up iterations
+  dim: 128                    # number of filters in the bottommost layer
+  norm: none                  # normalization layer [none, bn, in, ln]
+  activ: lrelu                # activation function [relu, lrelu, prelu, selu, tanh]
+  n_layer: 4                  # number of layers in D
+  pad_type: reflect           # padding type [zeros, reflect, replicate]
 lane:
   lr: 0.0                     # don't train lanes right now
   warmup_iters: 40000         # warm up iterations
   norm: ln                    # normalization layer [none/bn/in/ln]
   activ: relu                 # activation function [relu/lrelu/prelu/selu/tanh]
-  use_aux: True               # use segmentation loss [True/False]
+  use_aux: True               # use segmentation loss [True, False]
+  use_cls: True               # predict lane classes [True, False]
+  det_fc_size: 2048           # size of the detection fc layer
+  cls_fc_size: 1024           # size of the classification fc layer
   griding_num: 100            # number of column samples
-  cls_num_per_lane: 56        # number of row anchors [TuSimple/WATO=56, CULane=18]
+  num_anchors: 56             # number of row anchors [TuSimple/WATO=56, CULane=18]
   num_lanes: 4                # max number of lanes
+  num_classes: 3              # number of classes (including no lane class) to predict [3, 4]
   sim_loss_w: 0.0             # lane similarity loss
   shp_loss_w: 0.0             # lane shape loss weight
   cls_loss_w: 0.0             # lane classification loss weight

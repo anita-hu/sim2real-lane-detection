@@ -11,8 +11,8 @@ to a permission error.
 import os
 import sys
 from data.dataset import DatasetConverter
-from trainers import MUNIT_Trainer, UNIT_Trainer, Baseline_Trainer, ADA_Trainer
-from utils import prepare_sub_folder, write_loss, get_config, write_2images, Timer
+from trainers import MUNIT_Trainer, UNIT_Trainer
+from utils import get_config
 import torchvision.transforms as transforms
 from data.mytransforms import UnNormalize
 from torchvision.utils import save_image
@@ -36,28 +36,26 @@ config['vgg_model_path'] = opts.vgg_model_path
 dataset_root = config["dataA_root"]
 new_dataset = opts.new_data_folder
 
-print("making a copy of the dataset")
+print("Making a copy of the dataset")
 print(f"cp -r {dataset_root} {new_dataset}")
 os.system(f"cp -r {dataset_root} {new_dataset}")
-print("done copying the dataset")
+print("Done copying the dataset")
 
 # Setup model
 
 print(f"Loading {config['trainer']} trainer")
 if config['trainer'] == 'MUNIT':
+    config['display_size'] = config['batch_size']
     trainer = MUNIT_Trainer(config)
 elif config['trainer'] == 'UNIT':
     trainer = UNIT_Trainer(config)
-elif config['trainer'] == 'Baseline':
-    trainer = Baseline_Trainer(config)
-elif config['trainer'] == 'ADA':
-    trainer = ADA_Trainer(config)
 else:
-    sys.exit("Only support MUNIT|UNIT|Baseline|ADA")
-# Initialize dataset
+    sys.exit("Only support MUNIT|UNIT")
 
 trainer.resume(opts.checkpoint_dir, config)
 trainer.cuda()
+
+# Initialize dataset
 
 image_dim = (config["input_height"], config["input_width"])
 
@@ -67,15 +65,17 @@ img_transform = transforms.Compose([
     transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
 ])
 
+
 def get_tusimple_row_anchor(image_height):
-    return [int((160+i*10)/720*image_height) for i in range(56)]
+    return [int((160 + i * 10) / 720 * image_height) for i in range(56)]
+
 
 dataset_to_translate = DatasetConverter(new_dataset + "WATO_TuSimple",
-                               os.path.join(new_dataset, 'WATO_TuSimple/list/train_gt.txt'),
-                               img_transform=img_transform,
-                               image_dim=image_dim,
-                                row_anchor=get_tusimple_row_anchor(image_dim[0]),
-                               return_label=False)
+                                        os.path.join(new_dataset, 'WATO_TuSimple/list/train_gt.txt'),
+                                        img_transform=img_transform,
+                                        image_dim=image_dim,
+                                        row_anchor=get_tusimple_row_anchor(image_dim[0]),
+                                        return_label=False)
 
 dataset_root = config["dataA_root"]
 iterator = torch.utils.data.DataLoader(dataset_to_translate, batch_size=config["batch_size"],
@@ -83,7 +83,7 @@ iterator = torch.utils.data.DataLoader(dataset_to_translate, batch_size=config["
 
 unorm = UnNormalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
 
-print("starting conversion")
+print("Starting conversion")
 upsample = nn.Upsample(size=(720, 1280), mode='nearest')
 with torch.no_grad():
     for el in tqdm(iterator):

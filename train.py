@@ -16,7 +16,6 @@ try:
 except ImportError:  # will be 3.x series
     pass
 import os
-import sys
 import shutil
 import wandb
 
