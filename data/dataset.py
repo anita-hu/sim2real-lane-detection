@@ -212,3 +212,42 @@ class LaneDataset(torch.utils.data.Dataset):
         if -1 in all_idx[:, :, 0]:
             pdb.set_trace()
         return all_idx_cp
+
+class DatasetConverter(LaneDataset):
+    """
+    Subclass that does the same as the LaneDataset, but also
+    returns the image path such that the file can be overwritten.
+    __getitem__ is the only method changed.
+    """
+    def __getitem__(self, index):
+        l = self.list[index]
+        l_info = l.split()
+        img_name, label_name = l_info[0], l_info[1]
+        if img_name[0] == '/':
+            img_name = img_name[1:]
+            label_name = label_name[1:]
+
+        label_path = os.path.join(self.path, label_name)
+        label = loader_func(label_path)
+
+        img_path = os.path.join(self.path, img_name)
+        img = loader_func(img_path)
+
+        if self.simu_transform is not None:
+            img, label = self.simu_transform(img, label)
+        lane_pts = self._get_index(label)
+
+        # get the coordinates of lanes at row anchors
+
+        w, h = img.size
+        cls_label = self._grid_pts(lane_pts, self.griding_num, w)
+        # make the coordinates to classification label
+        if self.use_aux:
+            assert self.segment_transform is not None
+            seg_label = self.segment_transform(label)
+
+        if self.img_transform is not None:
+            img = self.img_transform(img)
+
+        return img, cls_label, img_path
+

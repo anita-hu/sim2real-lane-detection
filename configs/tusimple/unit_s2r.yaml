@@ -1,7 +1,5 @@
-# Modified work Copyright (C) 2021 Anita Hu, Sinclair Hudson, Martin Ethier.
-# Original work Copyright (C) 2017 NVIDIA Corporation.  All rights reserved.
+# Copyright (C) 2017 NVIDIA Corporation.  All rights reserved.
 # Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
-# Original source: https://github.com/mingyuliutw/UNIT/tree/master/configs
 
 # logger options
 log_iter: 400                 # How often do you want to log loss and learning rate values during training
@@ -10,7 +8,7 @@ display_size: 4               # How many images do you want to display each time
 
 # optimization options
 max_epoch: 100                # maximum number of training epochs
-save_policy: val              # [val, last] saving based on max validation performance or last epoch
+save_policy: last             # [val, last]
 batch_size: 2                 # batch size
 weight_decay: 0.0001          # weight decay
 beta1: 0.5                    # Adam parameter
@@ -22,15 +20,15 @@ gamma: 0.1                    # how much to decay learning rate
 warmup: linear                # warm up type
 warmup_iters: 0               # warm up iterations to use if not specified for each model
 gan_w: 1                      # weight of adversarial loss
-gan_fea_w: 0.1                # weight of feature adversarial loss
+gan_fea_w: 0.0                # weight of feature adversarial loss
 recon_x_w: 10                 # weight of image reconstruction loss
 recon_h_w: 0                  # weight of hidden reconstruction loss
 recon_kl_w: 0                 # weight of KL loss for reconstruction
 recon_x_cyc_w: 10             # weight of cycle consistency loss
 recon_kl_cyc_w: 0             # weight of KL loss for cycle consistency
-vgg_w: 0                      # weight of domain-invariant perceptual loss
-lane_w: 10                    # weight of lane detection loss
-lane_cyc_w: 10                # weight of cyclic lane detection loss
+vgg_w: 1                      # weight of domain-invariant perceptual loss
+lane_w: 0                     # weight of lane detection loss
+lane_cyc_w: 0                 # weight of cyclic lane detection loss
 mixed_precision: True         # use automatic mixed precision training
 multi_gpu: False              # use multi gpu training
 random_seed: 42
@@ -62,7 +60,7 @@ dis_fea:
   n_layer: 4                  # number of layers in D
   pad_type: reflect           # padding type [zeros, reflect, replicate]
 lane:
-  lr: 0.0004                  # initial learning rate
+  lr: 0.0000                  # initial learning rate
   warmup_iters: 40000         # warm up iterations
   norm: bn                    # normalization layer [none, bn, in, ln]
   activ: relu                 # activation function [relu, lrelu, prelu, selu, tanh]
@@ -74,9 +72,9 @@ lane:
   num_anchors: 56             # number of row anchors [TuSimple/WATO=56, CULane=18]
   num_lanes: 4                # max number of lanes
   num_classes: 3              # number of classes (including no lane class) to predict [3, 4]
-  sim_loss_w: 1.0             # lane similarity loss
+  sim_loss_w: 0.0             # lane similarity loss
   shp_loss_w: 0.0             # lane shape loss weight
-  cls_loss_w: 0.1             # lane classification loss weight
+  cls_loss_w: 0.0             # lane classification loss weight
 
 # data options
 input_dim_a: 3                # number of image channels [1, 3]

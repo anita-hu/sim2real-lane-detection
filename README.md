@@ -55,6 +55,55 @@ For training, run
 ```
 python train.py --config configs/tusimple/ada.yaml
 ```
+```
+usage: train.py [-h] [--config CONFIG] [--output_path OUTPUT_PATH] [--resume]
+                [--entity ENTITY] [--project PROJECT]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --config CONFIG       path to the config file
+  --output_path OUTPUT_PATH
+                        path to create outputs folder and contains
+                        models/vgg16.pth
+  --resume              resume training session
+  --entity ENTITY       wandb team name, set to None for default entity
+                        (username)
+  --project PROJECT     wandb project name [default: sim2real-lane-detection]
+```
+
+#### Two-stage training
+
+For reproducing the "Two Stage" training results, first, a translator must be trained, with a special config that doesn't use lane losses:
+```
+python train.py --config configs/tusimple/unit_s2r.yaml
+```
+
+Next,`translate_dataset.py` copies a whole dataset,
+translates every image using a trained translator,
+and saves it to be used in future runs:
+
+```
+mkdir outputs/ds
+chmod 777 outputs/ds
+python translate_dataset.py  --config configs/tusimple/unit_s2r.yaml  \
+--checkpoint_dir outputs/{run_id}/checkpoints/ \
+--new_data_folder outputs/ds/
+```
+
+Finally, once the dataset has been translated, the location can be referenced in
+a normal training configuration file, and training occurs as normal:
+
+```
+python train.py --config configs/tusimple/s2r_baseline.yaml 
+```
+
+where `s2r_baseline.yaml` has:
+
+```yaml
+...
+dataset: TuSimple                  
+dataA_root: outputs/ds/WATO_TuSimple
+```
 
 #### Evaluating
 Within the docker container, build the evaluation tool
@@ -64,8 +113,8 @@ make
 ```
 For evaluation, run
 ```
-python test.py --config configs/tusimple/ada.yaml \
-               --checkpoint outputs/ada/checkpoints/gen.pt \
+python test.py --config configs/tusimple/unit.yaml \
+               --checkpoint outputs/{run_id}/checkpoints/gen.pt \
                --output_folder results
 ```
 
@@ -74,8 +123,8 @@ python test.py --config configs/tusimple/ada.yaml \
 You can visualize results with openCV with the `demo.py` script:
 
 ```
-python demo.py --config configs/tusimple/ada.yaml \
-               --checkpoint /path/to/pretrained/model.pt
+python demo.py --config configs/tusimple/unit.yaml \
+               --checkpoint /path/to/pretrained/gen.pt
 ```
 Find the outputs in the `outputs` folder.
 

@@ -21,10 +21,10 @@ import shutil
 import wandb
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--config', type=str, default='configs/unit.yaml', help='Path to the config file.')
-parser.add_argument('--output_path', type=str, default='.', help="outputs path")
-parser.add_argument("--resume", action="store_true")
-parser.add_argument('--entity', type=str, default='watonomous-perception-research',
+parser.add_argument('--config', type=str, default='configs/unit.yaml', help='path to the config file')
+parser.add_argument('--output_path', type=str, default='.', help="path to create outputs folder and contains models/vgg16.pth")
+parser.add_argument("--resume", action="store_true", help="resume training session")
+parser.add_argument('--entity', type=str, default=None,
                     help="wandb team name, set to None for default entity (username)")
 parser.add_argument('--project', type=str, default='sim2real-lane-detection', help="wandb project name")
 opts = parser.parse_args()
@@ -194,7 +194,11 @@ for epoch in range(start_epoch, config['max_epoch']):
     wandb.log(log_dict, step=iterations)
 
     # Save network weights
-    if val_metric > best_val_metric:
+    if config['save_policy'] == "val" and val_metric > best_val_metric:
         trainer.save(checkpoint_directory, epoch)
         best_val_metric = val_metric
-        print("Saved best model at epoch", epoch + 1)
+        print("Saved best (by validation) model at epoch", epoch + 1)
+    elif config['save_policy'] == "last" and epoch == config['max_epoch'] - 1:
+        trainer.save(checkpoint_directory, epoch)
+        best_val_metric = val_metric
+        print("Saved last model at epoch", epoch + 1)

@@ -34,8 +34,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--config', type=str, help="net configuration")
 parser.add_argument('--output_folder', type=str, help="output folder for results")
 parser.add_argument('--checkpoint', type=str, help="checkpoint of autoencoders and lane model")
-parser.add_argument('--distributed', action='store_true', help="whether use distributed testing")
-parser.add_argument('--local_rank', type=int, default=0)
 opts = parser.parse_args()
 
 # Load experiment setting
@@ -80,23 +78,12 @@ trainer.lane_model.load_state_dict(state_dict['lane'], strict=False)  # don't lo
 trainer.cuda()
 trainer.eval()
 
-distributed = False
-if 'WORLD_SIZE' in os.environ:
-    distributed = int(os.environ['WORLD_SIZE']) > 1
-
-if distributed:
-    torch.cuda.set_device(opts.local_rank)
-    torch.distributed.init_process_group(backend='nccl', init_method='env://')
-
 if config['dataset'] == 'CULane':
     num_anchors = 18
 elif config['dataset'] == 'TuSimple':
     num_anchors = 56
 else:
     raise NotImplementedError("Only support CULane|TuSimple")
-
-if distributed:
-    net = torch.nn.parallel.DistributedDataParallel(trainer, device_ids=[opts.local_rank])
 
 if not os.path.exists(opts.output_folder):
     os.mkdir(opts.output_folder)

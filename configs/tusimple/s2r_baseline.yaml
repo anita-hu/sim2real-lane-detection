@@ -1,13 +1,11 @@
-# Modified work Copyright (C) 2021 Anita Hu, Sinclair Hudson, Martin Ethier.
-# Original work Copyright (C) 2017 NVIDIA Corporation.  All rights reserved.
+# Copyright (C) 2017 NVIDIA Corporation.  All rights reserved.
 # Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
-# Original source: https://github.com/mingyuliutw/UNIT/tree/master/configs
 
 # logger options
 log_iter: 103                 # How often do you want to log loss and learning rate values during training
 
 # optimization options
-max_epoch: 100                # maximum number of training epochs
+max_epoch: 150                # maximum number of training epochs
 save_policy: val              # [val, last] saving based on max validation performance or last epoch
 batch_size: 32                # batch size
 weight_decay: 0.0001          # weight decay
@@ -21,7 +19,7 @@ warmup: linear                # warm up type
 warmup_iters: 100             # warm up iterations
 mixed_precision: True         # use automatic mixed precision training
 multi_gpu: False              # use multi gpu training
-random_seed: 42
+random_seed: 1337
 
 # model options
 trainer: Baseline             # trainer [UNIT, MUNIT, Baseline, ADA]
@@ -49,6 +47,6 @@ input_height: 288             # resized image height
 input_width: 800              # resized image width
 
 # By convention, dataset A will be simulation, labelled data, while dataset B will be real-world without labels
-dataset: TuSimple                     # real-world dataset [CULane, TuSimple]
-dataA_root: /datasets/WATO_TuSimple   # dataset folder location for simulation images with labels
-dataB_root: /datasets/TuSimple        # dataset folder location for real-world images without labels
+dataset: TuSimple                     # real-world dataset [CULane/TuSimple]
+dataA_root: outputs/ds/WATO_TuSimple   # dataset folder location for simulation images with labels
+dataB_root: /datasets/TuSimple  # dataset folder location for real-world images without labels
