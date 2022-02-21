@@ -1,10 +1,18 @@
+[![arXiv](https://img.shields.io/badge/arXiv-2202.07133-b31b1b.svg)](https://arxiv.org/abs/2202.07133)
 [![License CC BY-NC-SA 4.0](https://img.shields.io/badge/license-CC4.0-blue.svg)](https://raw.githubusercontent.com/NVIDIA/FastPhotoStyle/master/LICENSE.md)
 ## Sim-to-Real Lane Detection and Classification
 
-Code for the paper [Sim-to-Real Domain Adaptation for Lane Detection and Classification in Autonomous Driving](). 
-If you use this code or our simulation dataset, please cite our paper:
+Code for the paper [Sim-to-Real Domain Adaptation for Lane Detection and Classification in Autonomous Driving](https://arxiv.org/abs/2202.07133). 
+If you use this code or our simulation [dataset](./DATASET.md), please cite our paper:
 ```
-
+@misc{hu2022simtoreal,
+      title={Sim-to-Real Domain Adaptation for Lane Detection and Classification in Autonomous Driving}, 
+      author={Chuqing Hu and Sinclair Hudson and Martin Ethier and Mohammad Al-Sharman and Derek Rayside and William Melek},
+      year={2022},
+      eprint={2202.07133},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV}
+}
 ```
 
 ### License
@@ -126,7 +134,7 @@ You can visualize results with openCV with the `demo.py` script:
 python demo.py --config configs/tusimple/unit.yaml \
                --checkpoint /path/to/pretrained/gen.pt
 ```
-Find the outputs in the `outputs` folder.
+Find the outputs in the `outputs/` folder.
 
 ### Reference
 

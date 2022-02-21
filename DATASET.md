@@ -24,7 +24,8 @@ $CULANEROOT
 |──laneseg_label_w16
 |──list
 ```
-Download our simulation data [WATO](https://drive.google.com/drive/folders/19kydbyO17dtieTar_5AS0hnXHDMHE4lk?usp=sharing)
+Our simulation dataset generator is available at [anita-hu/simulanes](https://github.com/anita-hu/simulanes). 
+Download our simulation data [WATO](https://drive.google.com/drive/folders/1Nxf49dk-CkUztJHihk5a9wvSyc8eQxOn?usp=sharing)
 and unzip to `$WATOROOT`.
 The WATO directory should look like:
 ```

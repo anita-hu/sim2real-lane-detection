@@ -1,6 +1,9 @@
+# Copyright (C) 2021 Anita Hu, Sinclair Hudson.  All rights reserved.
+# Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
+
 """
-this file is for creating a dataset of _translated images_ using an image translator,
-namely munit, unit, or drit. The dataset is replicated, and then for every image in the
+This file is for creating a dataset of _translated images_ using an image translator,
+namely munit or unit. The dataset is replicated, and then for every image in the
 simulated dataset it's translated to the "real" domain and then saved, overwritten.
 The original dataset is specified in the config file, datasetA. That dataset
 is cloned and then modified.
